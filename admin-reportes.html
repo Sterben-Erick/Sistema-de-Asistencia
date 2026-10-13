@@ -1,0 +1,597 @@
+<script>
+    function mostrarReportes() {
+        contenidoPrincipal.innerHTML = `
+    <div class="encabezadoModulo encabezadoReportes">
+      <div>
+        <h2>Reportes</h2>
+        <p>Consulta y revisión de los registros de asistencia.</p>
+      </div>
+    </div>
+
+    <div class="panelFiltrosReportes">
+      <div class="campoFiltroReporte">
+        <label for="filtroDniReporte">DNI</label>
+        <input
+          type="text"
+          id="filtroDniReporte"
+          maxlength="8"
+          inputmode="numeric"
+          placeholder="Buscar por DNI"
+          autocomplete="off"
+        >
+      </div>
+
+      <div class="campoFiltroReporte">
+        <label for="filtroNombreReporte">Nombre o apellido</label>
+        <input
+          type="text"
+          id="filtroNombreReporte"
+          placeholder="Buscar alumno o personal"
+          autocomplete="off"
+        >
+      </div>
+
+      <div class="campoFiltroReporte">
+        <label for="filtroFechaInicioReporte">Desde</label>
+        <input type="date" id="filtroFechaInicioReporte">
+      </div>
+
+      <div class="campoFiltroReporte">
+        <label for="filtroFechaFinReporte">Hasta</label>
+        <input type="date" id="filtroFechaFinReporte">
+      </div>
+
+      <div class="campoFiltroReporte">
+        <label for="filtroCarreraReporte">Carrera</label>
+        <select id="filtroCarreraReporte">
+          <option value="">Todas las carreras</option>
+          <option value="Asistencia Administrativa">Asistencia Administrativa</option>
+          <option value="Secretariado Ejecutivo">Secretariado Ejecutivo</option>
+          <option value="Enfermeria Tecnica">Enfermeria Tecnica</option>
+          <option value="Tecnica en Farmacia">Tecnica en Farmacia</option>
+          <option value="Farmacia Tecnica">Farmacia Tecnica</option>
+          <option value="Computacion e Informatica">Computacion e Informatica</option>
+        </select>
+      </div>
+
+      <div class="campoFiltroReporte">
+        <label for="filtroCicloReporte">Ciclo</label>
+        <select id="filtroCicloReporte">
+          <option value="">Todos los ciclos</option>
+          <option value="I">I</option>
+          <option value="II">II</option>
+          <option value="III">III</option>
+          <option value="IV">IV</option>
+          <option value="V">V</option>
+          <option value="VI">VI</option>
+        </select>
+      </div>
+
+      <div class="campoFiltroReporte">
+        <label for="filtroMetodoReporte">Método</label>
+        <select id="filtroMetodoReporte">
+          <option value="">Todos los métodos</option>
+          <option value="MANUAL">MANUAL</option>
+          <option value="SCANNER">SCANNER</option>
+        </select>
+      </div>
+
+      <div class="campoFiltroReporte">
+        <label for="filtroTipoRegistroReporte">Registro</label>
+        <select id="filtroTipoRegistroReporte">
+          <option value="">Entrada y salida</option>
+          <option value="ENTRADA">ENTRADA</option>
+          <option value="SALIDA">SALIDA</option>
+        </select>
+      </div>
+
+      <div class="campoFiltroReporte">
+        <label for="filtroTurnoReporte">Turno</label>
+        <select id="filtroTurnoReporte">
+          <option value="">Todos los turnos</option>
+          <option value="MAÑANA">MAÑANA</option>
+          <option value="TARDE">TARDE</option>
+          <option value="NOCHE">NOCHE</option>
+        </select>
+      </div>
+
+      <div class="campoFiltroReporte">
+        <label for="filtroEstadoReporte">Estado</label>
+        <select id="filtroEstadoReporte">
+          <option value="">Presentes + todos</option>
+          <option value="ASISTIO">ASISTIÓ</option>
+          <option value="ESPERANDO">ESPERANDO</option>
+          <option value="FALTO">FALTÓ</option>
+          <option value="JUSTIFICADO">JUSTIFICADO</option>
+        </select>
+      </div>
+
+      <div class="accionesFiltrosReportes">
+        <button type="button" id="btnBuscarReporte" class="btnPrincipalReporte">
+          <span class="material-symbols-outlined">search</span>
+          Buscar
+        </button>
+
+        <button type="button" id="btnLimpiarReporte" class="btnSecundarioReporte">
+          <span class="material-symbols-outlined">refresh</span>
+          Limpiar
+        </button>
+
+        <button type="button" id="btnExportarReporte" class="btnSecundarioReporte">
+          <span class="material-symbols-outlined">download</span>
+          Exportar Excel
+        </button>
+      </div>
+    </div>
+
+    <div class="resumenReporte">
+      <div>
+        <span class="material-symbols-outlined">fact_check</span>
+        <span>Registros encontrados:</span>
+        <strong id="contadorReporte">0</strong>
+      </div>
+    </div>
+
+    <div class="tablaReporte">
+      <table>
+        <thead>
+          <tr>
+            <th>DNI</th>
+            <th>NOMBRE COMPLETO</th>
+            <th>FECHA</th>
+            <th>HORA</th>
+            <th>MÉTODO</th>
+            <th>TIPO PERSONA</th>
+            <th>TIPO REGISTRO</th>
+            <th>CARRERA</th>
+            <th>CICLO</th>
+            <th>TURNO</th>
+            <th>ESTADO</th>
+            <th>ACCION</th>
+          </tr>
+        </thead>
+        <tbody id="tablaReporteBody">
+          <tr>
+            <td colspan="12" class="estadoTablaReporte">
+              Consultando registros...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+
+        const dni = document.getElementById("filtroDniReporte");
+        const nombre = document.getElementById("filtroNombreReporte");
+        const fechaInicio = document.getElementById("filtroFechaInicioReporte");
+        const fechaFin = document.getElementById("filtroFechaFinReporte");
+        const carrera = document.getElementById("filtroCarreraReporte");
+        const ciclo = document.getElementById("filtroCicloReporte");
+        const metodo = document.getElementById("filtroMetodoReporte");
+        const tipoRegistro = document.getElementById("filtroTipoRegistroReporte");
+        const turno = document.getElementById("filtroTurnoReporte");
+        const estado = document.getElementById("filtroEstadoReporte");
+        const btnBuscar = document.getElementById("btnBuscarReporte");
+        const btnLimpiar = document.getElementById("btnLimpiarReporte");
+        const btnExportar = document.getElementById("btnExportarReporte");
+        const contador = document.getElementById("contadorReporte");
+        const tabla = document.getElementById("tablaReporteBody");
+
+        let reporteActual = [];
+
+        function cargarReporte() {
+            const token = obtenerToken();
+            if (!token) {
+                cerrarSesionLocal();
+                return;
+            }
+
+            const esAusente = ["ESPERANDO", "FALTO", "JUSTIFICADO"].includes(estado.value);
+
+            if (esAusente) {
+                const fmt = v => { if (!v) return ""; const p = v.split("-"); return p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0] : ""; };
+                if (!fechaInicio.value) {
+                    mostrarNotificacion("Seleccione Desde para buscar ausentes.", "error");
+                    return;
+                }
+                cambiarEstadoBoton(btnBuscar, true, "hourglass_top", "Consultando...");
+                tabla.innerHTML = `<tr>
+          <td colspan="12" class="estadoTablaReporte">
+            Consultando registros...
+            </td>
+            </tr>`
+                    ;
+
+                google.script.run
+                    .withSuccessHandler(resultado => {
+                        cambiarEstadoBoton(btnBuscar, false, "search", "Buscar");
+                        if (manejarRespuestaAutorizacion(resultado)) return;
+                        if (!resultado || resultado.estado !== "OK") {
+                            reporteActual = [];
+                            contador.textContent = "0";
+                            tabla.innerHTML = `<tr><td colspan="12" class="estadoTablaReporte error">${escaparHTML(resultado && resultado.mensaje ? resultado.mensaje : "No se pudo obtener ausentes.")}</td></tr>`;
+                            return;
+                        }
+                        let lista = Array.isArray(resultado.ausentes) ? resultado.ausentes : [];
+                        const mapaEstado = { "FALTO": "FALTÓ", "ESPERANDO": "ESPERANDO", "JUSTIFICADO": "JUSTIFICADO" };
+                        const pedido = mapaEstado[estado.value] || "";
+                        if (pedido) lista = lista.filter(a => String(a.estado).toUpperCase() === pedido);
+                        const dniQ = dni.value.trim();
+                        const nomQ = nombre.value.trim().toUpperCase();
+                        if (dniQ) lista = lista.filter(a => String(a.dni).includes(dniQ));
+                        if (nomQ) lista = lista.filter(a => String(a.nombre).toUpperCase().includes(nomQ));
+
+                        reporteActual = lista.map(a => ({
+                            dni: a.dni, nombre: a.nombre, fecha: a.fecha, hora: a.horaEntrada || "-",
+                            metodo: "-", tipoPersona: "ESTUDIANTE", tipoRegistro: "-",
+                            carrera: a.carrera, ciclo: a.ciclo, turno: a.turno, estado: a.estado
+                        }));
+                        contador.textContent = reporteActual.length;
+                        if (!reporteActual.length) {
+                            tabla.innerHTML = `<tr><td colspan="12" class="estadoTablaReporte"><span class="material-symbols-outlined">search_off</span><span>Sin ausentes para esos filtros.</span></td></tr>`;
+                            return;
+                        }
+                        tabla.innerHTML = reporteActual.map(asistencia => `
+        <tr>
+          <td>${escaparHTML(asistencia.dni)}</td>
+          <td>${escaparHTML(asistencia.nombre || "-")}</td>
+          <td>${escaparHTML(asistencia.fecha)}</td>
+          <td>${escaparHTML(asistencia.hora)}</td>
+          <td>-</td>
+          <td>ESTUDIANTE</td>
+          <td>-</td>
+          <td>${escaparHTML(asistencia.carrera || "-")}</td>
+          <td>${escaparHTML(asistencia.ciclo || "-")}</td>
+          <td>${escaparHTML(asistencia.turno || "-")}</td>
+          <td>${escaparHTML(asistencia.estado || "-")}</td>
+          <td>${asistencia.estado === "FALTÓ" ? `<button type="button" class="btnAccionAlumno" data-dni="${escaparHTML(asistencia.dni)}" data-fecha="${escaparHTML(asistencia.fecha)}"><span class="material-symbols-outlined">edit_note</span></button>` : "-"}</td>
+        </tr>`).join("");
+                        tabla.querySelectorAll("button[data-dni]").forEach(btn => {
+                            btn.addEventListener("click", () => mostrarModalJustificar({
+                                dni: btn.getAttribute("data-dni"),
+                                fecha: btn.getAttribute("data-fecha")
+                            }));
+                        });
+                    })
+                    .withFailureHandler(error => {
+                        console.error(error);
+                        cambiarEstadoBoton(btnBuscar, false, "search", "Buscar");
+                        contador.textContent = "0";
+                        tabla.innerHTML = `<tr><td colspan="12" class="estadoTablaReporte error">Ocurrió un error al consultar ausentes.</td></tr>`;
+                    })
+                    .obtenerReporteAusentes(token, {
+                        fecha: fmt(fechaInicio.value),
+                        turno: turno.value,
+                        carrera: carrera.value,
+                        ciclo: ciclo.value
+                    });
+                return;
+            }
+
+            cambiarEstadoBoton(btnBuscar, true, "hourglass_top", "Consultando...");
+            tabla.innerHTML = `<tr><td colspan="12" class="estadoTablaReporte">Consultando registros...</td></tr>`;
+
+            google.script.run
+                .withSuccessHandler(resultado => {
+                    cambiarEstadoBoton(btnBuscar, false, "search", "Buscar");
+                    if (manejarRespuestaAutorizacion(resultado)) return;
+                    if (!resultado || resultado.estado !== "OK") {
+                        reporteActual = [];
+                        contador.textContent = "0";
+                        tabla.innerHTML = `<tr><td colspan="12" class="estadoTablaReporte error">${escaparHTML(resultado && resultado.mensaje ? resultado.mensaje : "No se pudo obtener el reporte.")}</td></tr>`;
+                        return;
+                    }
+                    reporteActual = Array.isArray(resultado.asistencias) ? resultado.asistencias : [];
+                    contador.textContent = reporteActual.length;
+                    if (!reporteActual.length) {
+                        tabla.innerHTML = `<tr><td colspan="12" class="estadoTablaReporte"><span class="material-symbols-outlined">search_off</span><span>No se encontraron registros con los filtros seleccionados.</span></td></tr>`;
+                        return;
+                    }
+                    tabla.innerHTML = reporteActual.map(asistencia => `
+      <tr>
+        <td>${escaparHTML(asistencia.dni)}</td>
+        <td>${escaparHTML(asistencia.nombre || "-")}</td>
+        <td>${escaparHTML(asistencia.fecha)}</td>
+        <td>${escaparHTML(asistencia.hora)}</td>
+        <td><span class="etiquetaReporte ${asistencia.metodo === "SCANNER" ? "scanner" : "manual"}">${escaparHTML(asistencia.metodo)}</span></td>
+        <td>${escaparHTML(asistencia.tipoPersona || "-")}</td>
+        <td><span class="etiquetaRegistroReporte ${asistencia.tipoRegistro === "SALIDA" ? "salida" : "entrada"}">${escaparHTML(asistencia.tipoRegistro || "-")}</span></td>
+        <td>${escaparHTML(asistencia.carrera || "-")}</td>
+        <td>${escaparHTML(asistencia.ciclo || "-")}</td>
+        <td>-</td>
+        <td>ASISTIÓ</td>
+        <td>-</td>
+      </tr>`).join("");
+                    tabla.querySelectorAll("button[data-dni]").forEach(btn => {
+                        btn.addEventListener("click", () => mostrarModalJustificar({
+                            dni: btn.getAttribute("data-dni"),
+                            fecha: btn.getAttribute("data-fecha")
+                        }));
+                    });
+                })
+                .withFailureHandler(error => {
+                    console.error(error);
+                    reporteActual = [];
+                    cambiarEstadoBoton(btnBuscar, false, "search", "Buscar");
+                    contador.textContent = "0";
+                    tabla.innerHTML = `<tr><td colspan="12" class="estadoTablaReporte error">Ocurrió un error al consultar los registros.</td></tr>`;
+                })
+                .obtenerReporteAsistencias(token, {
+                    dni: dni.value,
+                    nombre: nombre.value,
+                    fechaInicio: fechaInicio.value,
+                    fechaFin: fechaFin.value,
+                    carrera: carrera.value,
+                    ciclo: ciclo.value,
+                    metodo: metodo.value,
+                    tipoRegistro: tipoRegistro.value
+                });
+        }
+
+        function exportarReporte() {
+            if (!reporteActual.length) {
+                mostrarNotificacion(
+                    "No hay registros para exportar.",
+                    "error"
+                );
+                return;
+            }
+
+            const token = obtenerToken();
+
+            if (!token) {
+                cerrarSesionLocal();
+                return;
+            }
+
+            cambiarEstadoBoton(
+                btnExportar,
+                true,
+                "hourglass_top",
+                "Preparando..."
+            );
+
+            google.script.run
+                .withSuccessHandler(autorizacion => {
+                    if (manejarRespuestaAutorizacion(autorizacion)) {
+                        cambiarEstadoBoton(
+                            btnExportar,
+                            false,
+                            "download",
+                            "Exportar Excel"
+                        );
+                        return;
+                    }
+
+                    if (!autorizacion || !autorizacion.autorizado) {
+                        cambiarEstadoBoton(
+                            btnExportar,
+                            false,
+                            "download",
+                            "Exportar Excel"
+                        );
+
+                        mostrarNotificacion(
+                            autorizacion && autorizacion.mensaje
+                                ? autorizacion.mensaje
+                                : "No tienes permiso para exportar reportes.",
+                            "error"
+                        );
+
+                        return;
+                    }
+
+                    cargarLectorExcel()
+                        .then(() => {
+                            const datos = reporteActual.map(asistencia => ({
+                                DNI: asistencia.dni || "",
+                                "NOMBRE COMPLETO": asistencia.nombre || "",
+                                FECHA: asistencia.fecha || "",
+                                HORA: asistencia.hora || "",
+                                MÉTODO: asistencia.metodo || "",
+                                "TIPO PERSONA": asistencia.tipoPersona || "",
+                                "TIPO REGISTRO": asistencia.tipoRegistro || "",
+                                CARRERA: asistencia.carrera || "",
+                                CICLO: asistencia.ciclo || "",
+                                TURNO: asistencia.turno || "",
+                                ESTADO: asistencia.estado || ""
+                            }));
+
+                            const hoja = XLSX.utils.json_to_sheet(datos);
+                            const libro = XLSX.utils.book_new();
+
+                            XLSX.utils.book_append_sheet(
+                                libro,
+                                hoja,
+                                "Asistencias"
+                            );
+
+                            hoja["!cols"] = [
+                                { wch: 12 },
+                                { wch: 30 },
+                                { wch: 14 },
+                                { wch: 15 },
+                                { wch: 12 },
+                                { wch: 16 },
+                                { wch: 16 },
+                                { wch: 28 },
+                                { wch: 10 },
+                                { wch: 12 },
+                                { wch: 14 }
+                            ];
+
+                            const partesNombre = [];
+
+                            if (dni.value.trim()) {
+                                partesNombre.push(dni.value.trim());
+                            }
+
+                            if (nombre.value.trim()) {
+                                partesNombre.push(nombre.value.trim().replace(/\s+/g, "_"));
+                            }
+
+                            if (carrera.value) {
+                                partesNombre.push(
+                                    carrera.value.replace(/\s+/g, "_")
+                                );
+                            }
+
+                            if (ciclo.value) {
+                                partesNombre.push(`Ciclo_${ciclo.value}`);
+                            }
+
+                            if (tipoRegistro.value) {
+                                partesNombre.push(tipoRegistro.value);
+                            }
+
+                            if (turno.value) {
+                                partesNombre.push(turno.value);
+                            }
+
+                            if (estado.value) {
+                                partesNombre.push(estado.value);
+                            }
+
+                            const fecha = new Date()
+                                .toISOString()
+                                .slice(0, 10);
+
+                            partesNombre.push(fecha);
+
+                            const nombreArchivo =
+                                `Reporte_Asistencias_${partesNombre.join("_")}.xlsx`;
+
+                            XLSX.writeFile(libro, nombreArchivo);
+
+                            cambiarEstadoBoton(
+                                btnExportar,
+                                false,
+                                "download",
+                                "Exportar Excel"
+                            );
+
+                            mostrarNotificacion(
+                                `${reporteActual.length} registros exportados correctamente.`,
+                                "exito"
+                            );
+                        })
+                        .catch(error => {
+                            console.error(error);
+
+                            cambiarEstadoBoton(
+                                btnExportar,
+                                false,
+                                "download",
+                                "Exportar Excel"
+                            );
+
+                            mostrarNotificacion(
+                                "No se pudo preparar el archivo Excel.",
+                                "error"
+                            );
+                        });
+                })
+                .withFailureHandler(error => {
+                    console.error(error);
+
+                    cambiarEstadoBoton(
+                        btnExportar,
+                        false,
+                        "download",
+                        "Exportar Excel"
+                    );
+
+                    mostrarNotificacion(
+                        "No se pudo validar el permiso de exportación.",
+                        "error"
+                    );
+                })
+                .autorizarExportacionReporte(token);
+        }
+
+        btnBuscar.addEventListener("click", cargarReporte);
+
+        btnLimpiar.addEventListener("click", () => {
+            dni.value = "";
+            nombre.value = "";
+            fechaInicio.value = "";
+            fechaFin.value = "";
+            carrera.value = "";
+            ciclo.value = "";
+            metodo.value = "";
+            tipoRegistro.value = "";
+            turno.value = "";
+            estado.value = "";
+            cargarReporte();
+        });
+
+        btnExportar.addEventListener("click", exportarReporte);
+
+        [dni, nombre, fechaInicio, fechaFin].forEach(campo => {
+            campo.addEventListener("keydown", e => {
+                if (e.key === "Enter") {
+                    cargarReporte();
+                }
+            });
+        });
+
+        cargarReporte();
+    }
+
+    function mostrarModalJustificar(ausente) {
+        const anterior = document.getElementById("modalJustificar");
+        if (anterior) anterior.remove();
+        const modal = document.createElement("div");
+        modal.id = "modalJustificar";
+        modal.className = "modalConfirmacionSolicitud";
+        modal.innerHTML = `
+  <div class="modalConfirmacionSolicitudContenido" style="max-width:480px;">
+    <h3>Justificar inasistencia</h3>
+    <p>DNI <strong>${escaparHTML(ausente.dni)}</strong> — Fecha <strong>${escaparHTML(ausente.fecha)}</strong></p>
+    <div class="campoFiltroReporte"><label for="justMotivo">Motivo *</label>
+      <select id="justMotivo"><option value="">Seleccione</option><option>SALUD</option><option>FAMILIAR</option><option>ACADEMICO</option><option>TRANSPORTE</option><option>OTRO</option></select></div>
+    <div class="campoFiltroReporte"><label for="justObs">Observación</label><input type="text" id="justObs" placeholder="Detalle opcional"></div>
+    <div class="campoFiltroReporte"><label for="justArchivo">Documento PDF/JPG/PNG/WEBP máx 5MB (opcional)</label><input type="file" id="justArchivo" accept=".pdf,.jpg,.jpeg,.png,.webp"></div>
+    <div class="modalConfirmacionSolicitudAcciones">
+      <button type="button" class="btnCancelarConfirmacion" id="justCancelar">Cancelar</button>
+      <button type="button" class="btnConfirmarAprobacion" id="justGuardar"><span class="material-symbols-outlined">check</span>Justificar</button>
+    </div>
+  </div>`;
+        document.body.appendChild(modal);
+        document.getElementById("justCancelar").onclick = () => modal.remove();
+        document.getElementById("justGuardar").onclick = () => {
+            const motivo = document.getElementById("justMotivo").value.trim();
+            const observacion = document.getElementById("justObs").value.trim();
+            const file = document.getElementById("justArchivo").files[0];
+            if (!motivo) { mostrarNotificacion("Seleccione motivo.", "error"); return; }
+            const btnG = document.getElementById("justGuardar");
+            cambiarEstadoBoton(btnG, true, "hourglass_top", "Guardando...");
+            const enviar = (docId, docNom) => {
+                google.script.run
+                    .withSuccessHandler(r => {
+                        modal.remove();
+                        if (!r || r.estado !== "JUSTIFICADO") { mostrarNotificacion(r && r.mensaje ? r.mensaje : "No se pudo justificar.", "error"); return; }
+                        mostrarNotificacion("Inasistencia justificada.", "exito");
+                        cargarReporte();
+                    })
+                    .withFailureHandler(e => { console.error(e); modal.remove(); mostrarNotificacion("Error al justificar.", "error"); })
+                    .justificarInasistencia({ token: obtenerToken(), dni: ausente.dni, fecha: ausente.fecha, motivo: motivo, observacion: observacion, documentoId: docId || "", documentoNombre: docNom || "" });
+            };
+            if (!file) { enviar("", ""); return; }
+            if (file.size > 5 * 1024 * 1024) { cambiarEstadoBoton(btnG, false, "check", "Justificar"); mostrarNotificacion("Máximo 5 MB.", "error"); return; }
+            const lector = new FileReader();
+            lector.onload = () => {
+                google.script.run
+                    .withSuccessHandler(r2 => {
+                        if (!r2 || r2.estado !== "GUARDADO") { cambiarEstadoBoton(btnG, false, "check", "Justificar"); mostrarNotificacion(r2 && r2.mensaje ? r2.mensaje : "No se subió documento.", "error"); return; }
+                        enviar(r2.documentoId, r2.documentoNombre);
+                    })
+                    .withFailureHandler(e => { console.error(e); cambiarEstadoBoton(btnG, false, "check", "Justificar"); mostrarNotificacion("Error al subir.", "error"); })
+                    .guardarDocumentoJustificacion({ token: obtenerToken(), contenido: lector.result, mimeType: file.type, nombre: file.name });
+            };
+            lector.readAsDataURL(file);
+        };
+    }
+
+    configurarOpcionMenu(menuReportes, mostrarReportes);
+</script>

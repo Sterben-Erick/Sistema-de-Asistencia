@@ -1,0 +1,1060 @@
+<script>
+    function mostrarUsuarios() {
+        contenidoPrincipal.innerHTML = `
+    <div class="encabezadoModulo">
+      <div>
+        <h2>Usuarios</h2>
+        <p>Gestión de cuentas de acceso al sistema.</p>
+      </div>
+      <div>
+        <button type="button" id="btnNuevoUsuario">
+          <span class="material-symbols-outlined">person_add</span>
+          Nuevo usuario
+        </button>
+      </div>
+    </div>
+
+    <div id="mensajeUsuarios" class="mensajeModulo"></div>
+
+    <div class="buscadorAlumnos">
+      <input type="text" id="buscarUsuario" placeholder="Buscar por usuario, nombre o apellido..." autocomplete="off">
+      <button type="button" id="btnBuscarUsuario">
+        <span class="material-symbols-outlined">search</span>
+        Buscar
+      </button>
+    </div>
+
+    <div class="tablaAlumnos">
+      <table>
+        <thead>
+          <tr>
+            <th>Usuario</th>
+            <th>Nombre</th>
+            <th>Apellidos</th>
+            <th>Rol</th>
+            <th>Estado</th>
+            <th>Fecha de creación</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tablaUsuariosBody">
+          <tr>
+            <td colspan="7">Cargando usuarios...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+
+        const tabla = document.getElementById("tablaUsuariosBody");
+        const buscarUsuario = document.getElementById("buscarUsuario");
+        const btnBuscar = document.getElementById("btnBuscarUsuario");
+
+        google.script.run
+            .withSuccessHandler(respuesta => {
+                if (manejarRespuestaAutorizacion(respuesta)) return;
+
+                if (!respuesta || respuesta.estado !== "OK") {
+                    tabla.innerHTML = "<tr><td colspan='7'>No se pudieron cargar los usuarios.</td></tr>";
+                    return;
+                }
+
+                const usuarios = respuesta.usuarios || [];
+
+                if (!usuarios.length) {
+                    tabla.innerHTML = "<tr><td colspan='7'>No hay usuarios registrados.</td></tr>";
+                    return;
+                }
+
+                tabla.innerHTML = "";
+
+                usuarios.forEach(usuario => {
+                    const fila = document.createElement("tr");
+
+                    fila.innerHTML = `
+          <td>${escaparHTML(usuario.usuario)}</td>
+          <td>${escaparHTML(usuario.nombre)}</td>
+          <td>${escaparHTML(usuario.apellidos)}</td>
+          <td>${escaparHTML(usuario.rol)}</td>
+          <td>${escaparHTML(usuario.estado)}</td>
+          <td>${escaparHTML(usuario.fechaCreacion)}</td>
+          <td>
+            <button type="button" class="btnAccionUsuario" title="Editar usuario">
+              <span class="material-symbols-outlined">edit</span>
+            </button>
+            <button type="button" class="btnAccionUsuarioPassword" title="Cambiar contraseña">
+              <span class="material-symbols-outlined">key</span>
+            </button>
+            <button type="button" class="btnAccionUsuarioPermisos" title="Administrar permisos">
+              <span class="material-symbols-outlined">manage_accounts</span>
+            </button>
+            <button type="button" class="btnAccionUsuarioEliminar" title="Eliminar usuario">
+              <span class="material-symbols-outlined">delete</span>
+            </button>
+          </td>
+        `;
+
+                    fila.querySelector(".btnAccionUsuario").addEventListener("click", e => {
+                        e.stopPropagation();
+                        mostrarFormularioEditarUsuario(usuario);
+                    });
+
+                    fila.querySelector(".btnAccionUsuarioPassword").addEventListener("click", e => {
+                        e.stopPropagation();
+                        mostrarFormularioPasswordUsuario(usuario);
+                    });
+
+                    fila.querySelector(".btnAccionUsuarioPermisos").addEventListener("click", e => {
+                        e.stopPropagation();
+                        mostrarPermisosUsuario(usuario);
+                    });
+
+                    fila.querySelector(".btnAccionUsuarioEliminar").addEventListener("click", e => {
+                        e.stopPropagation();
+                        mostrarFormularioEliminarUsuario(usuario);
+                    });
+
+                    tabla.appendChild(fila);
+                });
+            })
+            .withFailureHandler(error => {
+                console.error(error);
+                tabla.innerHTML = "<tr><td colspan='7'>Error al cargar los usuarios.</td></tr>";
+            })
+            .obtenerUsuarios(obtenerToken());
+
+        document.getElementById("btnNuevoUsuario")
+            .addEventListener("click", mostrarFormularioNuevoUsuario);
+
+        configurarBusqueda(buscarUsuario, btnBuscar, tabla);
+    }
+
+    function mostrarFormularioEliminarUsuario(usuario) {
+        const idUsuario = String(usuario?.id || "").trim();
+
+        if (!idUsuario) {
+            mostrarNotificacion("No se pudo identificar el usuario.", "error");
+            return;
+        }
+
+        const modal = document.createElement("div");
+        modal.id = "modalEliminarUsuario";
+
+        modal.innerHTML = `
+    <div class="modalNuevoAlumnoContenido">
+      <div class="modalNuevoAlumnoCabecera">
+        <div>
+          <h2>Eliminar usuario</h2>
+          <p>Esta acción eliminará permanentemente la cuenta.</p>
+        </div>
+        <button type="button" id="btnCerrarEliminarUsuario" class="btnCerrarModalAlumno">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="formularioAlumno">
+        <div class="campoAlumno">
+          <label>Usuario</label>
+          <input type="text" value="${escaparHTML(usuario.usuario)}" readonly>
+        </div>
+
+        <div class="campoAlumno">
+          <label>Nombre</label>
+          <input type="text" value="${escaparHTML(usuario.nombre)} ${escaparHTML(usuario.apellidos)}" readonly>
+        </div>
+
+        <div class="campoAlumno">
+          <label>Rol</label>
+          <input type="text" value="${escaparHTML(usuario.rol)}" readonly>
+        </div>
+
+        <div class="campoAlumno">
+          <label>Contraseña del administrador</label>
+          <input
+            type="password"
+            id="passwordConfirmacionEliminarUsuario"
+            placeholder="Ingrese su contraseña"
+            autocomplete="current-password"
+          >
+        </div>
+
+        <p>
+          Para confirmar la eliminación, ingrese la contraseña de su cuenta administradora.
+        </p>
+      </div>
+
+      <div class="modalNuevoAlumnoAcciones">
+        <button type="button" id="btnCancelarEliminarUsuario">
+          Cancelar
+        </button>
+
+        <button type="button" id="btnConfirmarEliminarUsuario">
+          <span class="material-symbols-outlined">delete</span>
+          Eliminar usuario
+        </button>
+      </div>
+    </div>
+  `;
+
+        document.body.appendChild(modal);
+
+        const btnConfirmar = document.getElementById("btnConfirmarEliminarUsuario");
+        const inputPassword = document.getElementById("passwordConfirmacionEliminarUsuario");
+
+        function cerrar() {
+            modal.remove();
+        }
+
+        document.getElementById("btnCerrarEliminarUsuario")
+            .addEventListener("click", cerrar);
+
+        document.getElementById("btnCancelarEliminarUsuario")
+            .addEventListener("click", cerrar);
+
+        inputPassword.focus();
+
+        inputPassword.addEventListener("keydown", e => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                btnConfirmar.click();
+            }
+        });
+
+        btnConfirmar.addEventListener("click", () => {
+            const passwordConfirmacion = inputPassword.value;
+
+            if (!passwordConfirmacion) {
+                mostrarNotificacion(
+                    "Ingrese su contraseña para confirmar.",
+                    "error"
+                );
+                inputPassword.focus();
+                return;
+            }
+
+            cambiarEstadoBoton(
+                btnConfirmar,
+                true,
+                "hourglass_top",
+                "Verificando..."
+            );
+
+            google.script.run
+                .withSuccessHandler(resultado => {
+                    if (manejarRespuestaAutorizacion(resultado)) {
+                        cambiarEstadoBoton(
+                            btnConfirmar,
+                            false,
+                            "delete",
+                            "Eliminar usuario"
+                        );
+                        return;
+                    }
+
+                    if (resultado && resultado.estado === "ELIMINADO") {
+                        modal.remove();
+                        mostrarUsuarios();
+
+                        mostrarNotificacion(
+                            resultado.mensaje || "Usuario eliminado correctamente.",
+                            "exito"
+                        );
+
+                        return;
+                    }
+
+                    cambiarEstadoBoton(
+                        btnConfirmar,
+                        false,
+                        "delete",
+                        "Eliminar usuario"
+                    );
+
+                    inputPassword.value = "";
+                    inputPassword.focus();
+
+                    mostrarNotificacion(
+                        resultado?.mensaje || "No se pudo eliminar el usuario.",
+                        "error"
+                    );
+                })
+                .withFailureHandler(error => {
+                    console.error(error);
+
+                    cambiarEstadoBoton(
+                        btnConfirmar,
+                        false,
+                        "delete",
+                        "Eliminar usuario"
+                    );
+
+                    mostrarNotificacion(
+                        "Ocurrió un error al eliminar el usuario.",
+                        "error"
+                    );
+                })
+                .eliminarUsuario({
+                    id: idUsuario,
+                    passwordConfirmacion: passwordConfirmacion,
+                    token: obtenerToken()
+                });
+        });
+    }
+
+    function crearFormularioUsuario(usuario = null, edicion = false) {
+        const modal = document.createElement("div");
+        modal.id = edicion ? "modalEditarUsuario" : "modalNuevoUsuario";
+
+        const prefijo = edicion ? "editar" : "nuevo";
+
+        modal.innerHTML = `
+    <div class="modalNuevoAlumnoContenido">
+      <div class="modalNuevoAlumnoCabecera">
+        <div>
+          <h2>${edicion ? "Editar usuario" : "Nuevo usuario"}</h2>
+          <p>${edicion ? "Modificar información de la cuenta." : "Crear una nueva cuenta de acceso."}</p>
+        </div>
+
+        <button type="button" id="btnCerrarFormularioUsuario" class="btnCerrarModalAlumno">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="formularioAlumno">
+        <div class="campoAlumno">
+          <label for="${prefijo}Usuario">Usuario</label>
+          <input type="text" id="${prefijo}Usuario" maxlength="30" autocomplete="off" value="${usuario ? escaparHTML(usuario.usuario) : ""}">
+        </div>
+
+        <div class="campoAlumno">
+          <label for="${prefijo}NombreUsuario">Nombre</label>
+          <input type="text" id="${prefijo}NombreUsuario" autocomplete="off" value="${usuario ? escaparHTML(usuario.nombre) : ""}">
+        </div>
+
+        <div class="campoAlumno">
+          <label for="${prefijo}ApellidosUsuario">Apellidos</label>
+          <input type="text" id="${prefijo}ApellidosUsuario" autocomplete="off" value="${usuario ? escaparHTML(usuario.apellidos) : ""}">
+        </div>
+
+        <div class="campoAlumno">
+          <label for="${prefijo}RolUsuario">Rol</label>
+          <select id="${prefijo}RolUsuario">
+            <option value="">Seleccione un rol</option>
+            <option value="ADMINISTRADOR">ADMINISTRADOR</option>
+            <option value="SECRETARIA">SECRETARIA</option>
+            <option value="COORDINADOR">COORDINADOR</option>
+          </select>
+        </div>
+
+        <div class="campoAlumno">
+          <label for="${prefijo}CargoUsuario">Cargo</label>
+          <select id="${prefijo}CargoUsuario">
+            <option value="">Cargando cargos...</option>
+          </select>
+        </div>
+
+        ${edicion ? `
+        <div class="campoAlumno">
+          <label for="${prefijo}EstadoUsuario">Estado</label>
+          <select id="${prefijo}EstadoUsuario">
+            <option value="ACTIVO">ACTIVO</option>
+            <option value="INACTIVO">INACTIVO</option>
+          </select>
+        </div>
+        ` : ""}
+
+        ${!edicion ? `
+        <div class="campoAlumno">
+          <label for="${prefijo}PasswordUsuario">Contraseña</label>
+          <input type="password" id="${prefijo}PasswordUsuario" minlength="8" autocomplete="new-password">
+        </div>
+
+        <div class="campoAlumno">
+          <label for="${prefijo}ConfirmarPasswordUsuario">Confirmar contraseña</label>
+          <input type="password" id="${prefijo}ConfirmarPasswordUsuario" minlength="8" autocomplete="new-password">
+        </div>
+        ` : ""}
+      </div>
+
+      <div class="modalNuevoAlumnoAcciones">
+        <button type="button" id="btnCancelarFormularioUsuario">Cancelar</button>
+
+        <button type="button" id="btnGuardarFormularioUsuario">
+          <span class="material-symbols-outlined">save</span>
+          ${edicion ? "Guardar cambios" : "Crear usuario"}
+        </button>
+      </div>
+    </div>
+  `;
+
+        document.body.appendChild(modal);
+
+        const campoUsuario = document.getElementById(prefijo + "Usuario");
+        const campoNombre = document.getElementById(prefijo + "NombreUsuario");
+        const campoApellidos = document.getElementById(prefijo + "ApellidosUsuario");
+        const campoRol = document.getElementById(prefijo + "RolUsuario");
+        const campoCargo = document.getElementById(prefijo + "CargoUsuario");
+        const campoEstado = edicion ? document.getElementById(prefijo + "EstadoUsuario") : null;
+        const campoPassword = !edicion ? document.getElementById(prefijo + "PasswordUsuario") : null;
+        const campoConfirmar = !edicion ? document.getElementById(prefijo + "ConfirmarPasswordUsuario") : null;
+        const btnGuardar = document.getElementById("btnGuardarFormularioUsuario");
+
+        function cerrar() {
+            modal.remove();
+        }
+
+        document.getElementById("btnCerrarFormularioUsuario")
+            .addEventListener("click", cerrar);
+
+        document.getElementById("btnCancelarFormularioUsuario")
+            .addEventListener("click", cerrar);
+
+        google.script.run
+            .withSuccessHandler(resultado => {
+                if (manejarRespuestaAutorizacion(resultado)) {
+                    campoCargo.innerHTML = `<option value="">Sin permisos para consultar cargos</option>`;
+                    return;
+                }
+
+                if (!resultado || resultado.estado !== "OK") {
+                    campoCargo.innerHTML = `<option value="">No se pudieron cargar los cargos</option>`;
+                    mostrarNotificacion(
+                        resultado && resultado.mensaje || "No se pudieron cargar los cargos.",
+                        "error"
+                    );
+                    return;
+                }
+
+                campoCargo.innerHTML = `
+        <option value="">Seleccione un cargo</option>
+        ${(resultado.cargos || []).map(cargo => `
+          <option value="${escaparHTML(cargo.id)}">${escaparHTML(cargo.nombre)}</option>
+        `).join("")}
+      `;
+
+                if (usuario) {
+                    campoCargo.value = usuario.cargo || "";
+                }
+            })
+            .withFailureHandler(error => {
+                console.error(error);
+                campoCargo.innerHTML = `<option value="">No se pudieron cargar los cargos</option>`;
+                mostrarNotificacion("No se pudieron cargar los cargos.", "error");
+            })
+            .obtenerCargos(obtenerToken());
+
+        if (usuario) {
+            campoRol.value = usuario.rol || "";
+
+            if (campoEstado) {
+                campoEstado.value = usuario.estado || "ACTIVO";
+            }
+        }
+
+        btnGuardar.addEventListener("click", () => {
+            const nombreUsuario = campoUsuario.value.trim().toLowerCase();
+            const nombre = campoNombre.value.trim();
+            const apellidos = campoApellidos.value.trim();
+            const rol = campoRol.value;
+            const cargo = campoCargo.value;
+
+            if (!nombreUsuario) {
+                mostrarNotificacion("Complete el nombre de usuario.", "error");
+                campoUsuario.focus();
+                return;
+            }
+
+            if (!/^[a-z0-9._-]{4,30}$/.test(nombreUsuario)) {
+                mostrarNotificacion(
+                    "El usuario debe tener entre 4 y 30 caracteres y solo puede contener letras, números, punto, guion o guion bajo.",
+                    "error"
+                );
+                campoUsuario.focus();
+                return;
+            }
+
+            if (!nombre) {
+                mostrarNotificacion("Complete el nombre.", "error");
+                campoNombre.focus();
+                return;
+            }
+
+            if (!apellidos) {
+                mostrarNotificacion("Complete los apellidos.", "error");
+                campoApellidos.focus();
+                return;
+            }
+
+            if (!rol) {
+                mostrarNotificacion("Seleccione un rol.", "error");
+                campoRol.focus();
+                return;
+            }
+
+            if (!cargo) {
+                mostrarNotificacion("Seleccione un cargo.", "error");
+                campoCargo.focus();
+                return;
+            }
+
+            const datos = {
+                usuario: nombreUsuario,
+                nombre,
+                apellidos,
+                rol,
+                cargo,
+                token: obtenerToken()
+            };
+
+            if (edicion) {
+                const id = String(usuario && usuario.id || "").trim();
+
+                if (!id) {
+                    mostrarNotificacion("No se pudo identificar el usuario.", "error");
+                    return;
+                }
+
+                datos.id = id;
+                datos.estado = campoEstado.value;
+
+                if (!datos.estado) {
+                    mostrarNotificacion("Seleccione un estado.", "error");
+                    campoEstado.focus();
+                    return;
+                }
+            } else {
+                const password = campoPassword.value;
+                const confirmarPassword = campoConfirmar.value;
+
+                if (password.length < 8) {
+                    mostrarNotificacion(
+                        "La contraseña debe tener al menos 8 caracteres.",
+                        "error"
+                    );
+                    campoPassword.focus();
+                    return;
+                }
+
+                if (!confirmarPassword) {
+                    mostrarNotificacion(
+                        "Debe confirmar la contraseña.",
+                        "error"
+                    );
+                    campoConfirmar.focus();
+                    return;
+                }
+
+                if (password !== confirmarPassword) {
+                    mostrarNotificacion(
+                        "Las contraseñas no coinciden.",
+                        "error"
+                    );
+                    campoConfirmar.focus();
+                    return;
+                }
+
+                datos.password = password;
+                datos.confirmarPassword = confirmarPassword;
+            }
+
+            cambiarEstadoBoton(
+                btnGuardar,
+                true,
+                "hourglass_top",
+                edicion ? "Guardando..." : "Creando..."
+            );
+
+            const funcion = edicion ? "actualizarUsuario" : "registrarUsuario";
+
+            google.script.run
+                .withSuccessHandler(resultado => {
+                    if (manejarRespuestaAutorizacion(resultado)) {
+                        cambiarEstadoBoton(
+                            btnGuardar,
+                            false,
+                            "save",
+                            edicion ? "Guardar cambios" : "Crear usuario"
+                        );
+                        return;
+                    }
+
+                    if (resultado && (
+                        resultado.estado === "ACTUALIZADO" ||
+                        resultado.estado === "REGISTRADO"
+                    )) {
+                        modal.remove();
+                        mostrarUsuarios();
+
+                        mostrarNotificacion(
+                            resultado.mensaje,
+                            "exito"
+                        );
+
+                        return;
+                    }
+
+                    cambiarEstadoBoton(
+                        btnGuardar,
+                        false,
+                        "save",
+                        edicion ? "Guardar cambios" : "Crear usuario"
+                    );
+
+                    mostrarNotificacion(
+                        resultado && resultado.mensaje || "No se pudo guardar el usuario.",
+                        "error"
+                    );
+                })
+                .withFailureHandler(error => {
+                    console.error(error);
+
+                    cambiarEstadoBoton(
+                        btnGuardar,
+                        false,
+                        "save",
+                        edicion ? "Guardar cambios" : "Crear usuario"
+                    );
+
+                    mostrarNotificacion(
+                        edicion
+                            ? "Ocurrió un error al actualizar el usuario."
+                            : "Ocurrió un error al crear el usuario.",
+                        "error"
+                    );
+                })[funcion](datos);
+        });
+
+        campoUsuario.focus();
+    }
+
+    function mostrarFormularioNuevoUsuario() {
+        crearFormularioUsuario(null, false);
+    }
+
+    function mostrarFormularioEditarUsuario(usuario) {
+        crearFormularioUsuario(usuario, true);
+    }
+
+    function mostrarPermisosUsuario(usuario) {
+        const idUsuario = String(usuario && usuario.id || "").trim();
+
+        if (!idUsuario) {
+            mostrarNotificacion("No se pudo identificar el usuario.", "error");
+            return;
+        }
+
+        const modal = document.createElement("div");
+        modal.id = "modalPermisosUsuario";
+        modal.className = "modalNuevoAlumno";
+
+        modal.innerHTML = `
+    <div class="modalNuevoAlumnoContenido">
+      <div class="modalNuevoAlumnoCabecera">
+        <div>
+          <h2>Permisos del usuario</h2>
+          <p>${escaparHTML(usuario.nombre)} ${escaparHTML(usuario.apellidos)} · ${escaparHTML(usuario.usuario)}</p>
+        </div>
+
+        <button type="button" id="btnCerrarPermisosUsuario" class="btnCerrarModalAlumno">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div id="contenidoPermisosUsuario">
+        <p>Cargando permisos...</p>
+      </div>
+
+      <div class="modalNuevoAlumnoAcciones">
+        <button type="button" id="btnCancelarPermisosUsuario">
+          Cancelar
+        </button>
+
+        <button type="button" id="btnGuardarPermisosUsuario">
+          <span class="material-symbols-outlined">save</span>
+          Guardar permisos
+        </button>
+      </div>
+    </div>
+  `;
+
+        document.body.appendChild(modal);
+
+        const contenido = document.getElementById("contenidoPermisosUsuario");
+        const btnGuardar = document.getElementById("btnGuardarPermisosUsuario");
+
+        function cerrar() {
+            modal.remove();
+        }
+
+        document.getElementById("btnCerrarPermisosUsuario")
+            .addEventListener("click", cerrar);
+
+        document.getElementById("btnCancelarPermisosUsuario")
+            .addEventListener("click", cerrar);
+
+        google.script.run
+            .withSuccessHandler(respuesta => {
+                if (manejarRespuestaAutorizacion(respuesta)) {
+                    cerrar();
+                    return;
+                }
+
+                if (!respuesta || respuesta.estado !== "OK") {
+                    contenido.innerHTML = `<p>${escaparHTML(respuesta && respuesta.mensaje || "No se pudieron cargar los permisos.")}</p>`;
+                    btnGuardar.disabled = true;
+                    return;
+                }
+
+                const permisos = respuesta.permisos || [];
+
+                if (!permisos.length) {
+                    contenido.innerHTML = "<p>No existen permisos configurados.</p>";
+                    btnGuardar.disabled = true;
+                    return;
+                }
+
+                const grupos = {};
+
+                permisos.forEach(permiso => {
+                    if (!grupos[permiso.modulo]) {
+                        grupos[permiso.modulo] = [];
+                    }
+
+                    grupos[permiso.modulo].push(permiso);
+                });
+
+                contenido.innerHTML = "";
+
+                Object.keys(grupos).forEach(modulo => {
+                    const grupo = document.createElement("div");
+                    grupo.className = "grupoPermisosUsuario";
+
+                    const titulo = document.createElement("h3");
+                    titulo.textContent = modulo;
+
+                    grupo.appendChild(titulo);
+
+                    grupos[modulo].forEach(permiso => {
+                        const fila = document.createElement("div");
+                        fila.className = "filaPermisoUsuario";
+
+                        const descripcion = document.createElement("div");
+
+                        const nombre = document.createElement("strong");
+                        nombre.textContent = permiso.descripcion;
+
+                        const detalle = document.createElement("small");
+                        detalle.textContent =
+                            `${permiso.accion} · Cargo: ${permiso.cargoHabilitado ? "Sí" : "No"}` +
+                            (permiso.usuarioHabilitado === null
+                                ? " · Personalizado: No"
+                                : ` · Personalizado: ${permiso.usuarioHabilitado ? "Sí" : "No"}`);
+
+                        descripcion.appendChild(nombre);
+                        descripcion.appendChild(document.createElement("br"));
+                        descripcion.appendChild(detalle);
+
+                        const control = document.createElement("select");
+                        control.className = "controlPermisoUsuario";
+                        control.dataset.idPermiso = permiso.idPermiso;
+                        control.dataset.protegido = permiso.sistema ? "SI" : "NO";
+
+                        const opcionCargo = document.createElement("option");
+                        opcionCargo.value = "HEREDADO";
+                        opcionCargo.textContent =
+                            `Heredar del cargo (${permiso.cargoHabilitado ? "Sí" : "No"})`;
+
+                        const opcionSi = document.createElement("option");
+                        opcionSi.value = "SI";
+                        opcionSi.textContent = "Sí";
+
+                        const opcionNo = document.createElement("option");
+                        opcionNo.value = "NO";
+                        opcionNo.textContent = "No";
+
+                        control.appendChild(opcionCargo);
+                        control.appendChild(opcionSi);
+                        control.appendChild(opcionNo);
+
+                        if (permiso.usuarioHabilitado === null) {
+                            control.value = "HEREDADO";
+                        } else {
+                            control.value = permiso.usuarioHabilitado ? "SI" : "NO";
+                        }
+
+                        if (permiso.sistema) {
+                            control.value = "SI";
+                            control.disabled = true;
+                        }
+
+                        fila.appendChild(descripcion);
+                        fila.appendChild(control);
+                        grupo.appendChild(fila);
+                    });
+
+                    contenido.appendChild(grupo);
+                });
+            })
+            .withFailureHandler(error => {
+                console.error(error);
+                contenido.innerHTML = "<p>Error al cargar los permisos.</p>";
+                btnGuardar.disabled = true;
+            })
+            .obtenerPermisosSistema(obtenerToken(), idUsuario);
+
+        btnGuardar.addEventListener("click", () => {
+            const controles = contenido.querySelectorAll(".controlPermisoUsuario");
+            const permisos = [];
+
+            controles.forEach(control => {
+                if (control.disabled) return;
+
+                if (control.value === "HEREDADO") return;
+
+                permisos.push({
+                    idPermiso: control.dataset.idPermiso,
+                    habilitado: control.value === "SI"
+                });
+            });
+
+            cambiarEstadoBoton(
+                btnGuardar,
+                true,
+                "hourglass_top",
+                "Guardando..."
+            );
+
+            google.script.run
+                .withSuccessHandler(respuesta => {
+                    if (manejarRespuestaAutorizacion(respuesta)) {
+                        cambiarEstadoBoton(
+                            btnGuardar,
+                            false,
+                            "save",
+                            "Guardar permisos"
+                        );
+                        return;
+                    }
+
+                    if (respuesta && respuesta.estado === "OK") {
+                        cerrar();
+
+                        mostrarNotificacion(
+                            respuesta.mensaje,
+                            "exito"
+                        );
+
+                        return;
+                    }
+
+                    cambiarEstadoBoton(
+                        btnGuardar,
+                        false,
+                        "save",
+                        "Guardar permisos"
+                    );
+
+                    mostrarNotificacion(
+                        respuesta && respuesta.mensaje || "No se pudieron guardar los permisos.",
+                        "error"
+                    );
+                })
+                .withFailureHandler(error => {
+                    console.error(error);
+
+                    cambiarEstadoBoton(
+                        btnGuardar,
+                        false,
+                        "save",
+                        "Guardar permisos"
+                    );
+
+                    mostrarNotificacion(
+                        "Ocurrió un error al guardar los permisos.",
+                        "error"
+                    );
+                })
+                .guardarPermisosUsuario({
+                    token: obtenerToken(),
+                    idUsuario,
+                    permisos
+                });
+        });
+    }
+
+    function mostrarFormularioPasswordUsuario(usuario) {
+        const idUsuario = String(usuario && usuario.id || "").trim();
+
+        if (!idUsuario) {
+            mostrarNotificacion(
+                "No se pudo identificar el usuario.",
+                "error"
+            );
+            return;
+        }
+
+        const modal = document.createElement("div");
+        modal.id = "modalPasswordUsuario";
+
+        modal.innerHTML = `
+    <div class="modalNuevoAlumnoContenido">
+      <div class="modalNuevoAlumnoCabecera">
+        <div>
+          <h2>Cambiar contraseña</h2>
+          <p>Nueva contraseña para <strong>${escaparHTML(usuario.usuario)}</strong>.</p>
+        </div>
+
+        <button type="button" id="btnCerrarPasswordUsuario" class="btnCerrarModalAlumno">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="formularioAlumno">
+        <div class="campoAlumno">
+          <label for="nuevaPasswordUsuario">Nueva contraseña</label>
+          <input type="password" id="nuevaPasswordUsuario" minlength="8" autocomplete="new-password">
+        </div>
+
+        <div class="campoAlumno">
+          <label for="confirmarNuevaPasswordUsuario">Confirmar contraseña</label>
+          <input type="password" id="confirmarNuevaPasswordUsuario" minlength="8" autocomplete="new-password">
+        </div>
+      </div>
+
+      <div class="modalNuevoAlumnoAcciones">
+        <button type="button" id="btnCancelarPasswordUsuario">
+          Cancelar
+        </button>
+
+        <button type="button" id="btnGuardarPasswordUsuario">
+          <span class="material-symbols-outlined">key</span>
+          Cambiar contraseña
+        </button>
+      </div>
+    </div>
+  `;
+
+        document.body.appendChild(modal);
+
+        const password = document.getElementById("nuevaPasswordUsuario");
+        const confirmar = document.getElementById("confirmarNuevaPasswordUsuario");
+        const btnGuardar = document.getElementById("btnGuardarPasswordUsuario");
+
+        function cerrar() {
+            modal.remove();
+        }
+
+        document.getElementById("btnCerrarPasswordUsuario")
+            .addEventListener("click", cerrar);
+
+        document.getElementById("btnCancelarPasswordUsuario")
+            .addEventListener("click", cerrar);
+
+        btnGuardar.addEventListener("click", () => {
+            const nuevaPassword = password.value;
+            const confirmarPassword = confirmar.value;
+            const token = obtenerToken();
+
+            if (!token) {
+                cerrarSesionLocal();
+                return;
+            }
+
+            if (nuevaPassword.length < 8) {
+                mostrarNotificacion(
+                    "La contraseña debe tener como mínimo 8 caracteres.",
+                    "error"
+                );
+                password.focus();
+                return;
+            }
+
+            if (!confirmarPassword) {
+                mostrarNotificacion(
+                    "Debe confirmar la contraseña.",
+                    "error"
+                );
+                confirmar.focus();
+                return;
+            }
+
+            if (nuevaPassword !== confirmarPassword) {
+                mostrarNotificacion(
+                    "Las contraseñas no coinciden.",
+                    "error"
+                );
+                confirmar.focus();
+                return;
+            }
+
+            cambiarEstadoBoton(
+                btnGuardar,
+                true,
+                "hourglass_top",
+                "Actualizando..."
+            );
+
+            google.script.run
+                .withSuccessHandler(resultado => {
+                    if (manejarRespuestaAutorizacion(resultado)) {
+                        cambiarEstadoBoton(
+                            btnGuardar,
+                            false,
+                            "key",
+                            "Cambiar contraseña"
+                        );
+                        return;
+                    }
+
+                    if (resultado && resultado.estado === "ACTUALIZADO") {
+                        modal.remove();
+
+                        mostrarNotificacion(
+                            resultado.mensaje || "Contraseña actualizada correctamente.",
+                            "exito"
+                        );
+
+                        return;
+                    }
+
+                    cambiarEstadoBoton(
+                        btnGuardar,
+                        false,
+                        "key",
+                        "Cambiar contraseña"
+                    );
+
+                    mostrarNotificacion(
+                        resultado && resultado.mensaje || "No se pudo cambiar la contraseña.",
+                        "error"
+                    );
+                })
+                .withFailureHandler(error => {
+                    console.error(error);
+
+                    cambiarEstadoBoton(
+                        btnGuardar,
+                        false,
+                        "key",
+                        "Cambiar contraseña"
+                    );
+
+                    mostrarNotificacion(
+                        "Ocurrió un error al cambiar la contraseña.",
+                        "error"
+                    );
+                })
+                .cambiarPasswordUsuario({
+                    id: idUsuario,
+                    password: nuevaPassword,
+                    confirmarPassword: confirmarPassword,
+                    token: token
+                });
+        });
+
+        password.focus();
+    }
+
+    configurarOpcionMenu(menuUsuarios, mostrarUsuarios);
+
+</script>

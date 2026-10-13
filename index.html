@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?!= include("css"); ?>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <title>Sistema de Asistencia</title>
+</head>
+
+<body>
+    <div class="contenedor">
+        <header>
+            <h1>Sistema de Control de Asistencia</h1>
+            <button type="button" id="btnMenuMovil" aria-label="Menú"><span class="material-symbols-outlined">menu</span></button>
+        </header>
+        <nav>
+            <img id="logoInstitucionalNav"
+                src="https://www.santalucia.edu.pe/admin/_uploads/imagenes/30122025112505-matricula-2026-i.png"
+                alt="Logo Santa Lucia">
+
+            <div class="barras">
+                <section id="menu">
+                    <a href="#"><span class="material-symbols-outlined">how_to_reg</span>Registrar Asistencia</a>
+                </section>
+                <section id="ajustes">
+                    <a href="#" id="btnAdministracion"><span
+                            class="material-symbols-outlined">admin_panel_settings</span>Administracion</a>
+                </section>
+            </div>
+        </nav>
+        <main>
+            <img id="imagenFondoAsistencia"
+                src="https://www.santalucia.edu.pe/admin/_uploads/imagenes/30122025112505-matricula-2026-i.png"
+                alt="Imagen institucional">
+            <div class="marcarAsistencia">
+                <h1 id="hora">sincronizando...</h1>
+                <h2 id="fecha">sincronizando hora del servidor...</h2>
+                <p><span class="material-symbols-outlined">barcode_reader</span>Acerque el DNI</p>
+                <input type="text" name="dni" id="dni" autocomplete="off">
+                <button id="btnRegManual">Registro Manual</button>
+            </div>
+            </div>
+            <dialog id="modalMensaje" class="dlg">
+                <span class="material-symbols-outlined icono">verified_user</span>
+                <h1 id="nombre_estudiante" class="dlg-titulo">Nombre de estudiante</h1>
+                <img id="fotoPersonal" src="" alt="Foto del personal">
+                <h4 id="mensaje" class="dlg-estado">Registro exitoso</h4>
+                <p id="hora_registro"></p>
+                <div id="contenedorQr" style="display: none;">
+                    <p>Escanee el codigo QR para registrarse:</p>
+                    <div id="qrFormulario"></div>
+                </div>
+                <button type="button" id="btnCerrarMensaje" class="x">x</button>
+            </dialog>
+            <dialog id="modalLogin">
+                <span class="material-symbols-outlined iconoLogin">admin_panel_settings</span>
+                <h2>Acceso administrativo</h2>
+                <label for="usuarioLogin">Usuario</label>
+                <input type="text" id="usuarioLogin" autocomplete="username">
+                <label for="passwordLogin">Contraseña</label>
+                <input type="password" id="passwordLogin" autocomplete="current-password">
+                <div class="accionesLogin">
+                    <button type="button" id="btnIniciarSesion">Iniciar sesión</button>
+                    <button type="button" id="btnCancelarLogin">Cancelar</button>
+                </div>
+            </dialog>
+        </main>
+        <footer>
+            <div class="mi-copyright">
+                <p>© 2026 - Creado por <a href="https://github.com/Sterben-Erick?tab=repositories"
+                        target="_blank">Erick</a></p>
+            </div>
+        </footer>
+    </div>
+    <?!= include("java"); ?>
+</body>
+
+</html>

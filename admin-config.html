@@ -1,0 +1,808 @@
+<script>
+  function mostrarConfiguracion() {
+    contenidoPrincipal.innerHTML = `
+    <div class="encabezadoModulo">
+      <div>
+        <h2>Configuración</h2>
+        <p>Administración de los parámetros del sistema.</p>
+      </div>
+    </div>
+
+    <div class="configuracionGrid">
+
+      <section class="configuracionSeccion">
+        <div class="configuracionSeccionCabecera">
+          <div class="configuracionIcono">
+            <span class="material-symbols-outlined">how_to_reg</span>
+          </div>
+          <div>
+            <h3>Asistencia</h3>
+            <p>Control del registro de asistencia.</p>
+          </div>
+        </div>
+
+        <div class="configuracionOpciones">
+
+          <div class="configuracionOpcion">
+            <div class="configuracionOpcionInfo">
+              <strong>Registro manual</strong>
+              <span>Permitir registrar asistencia ingresando el DNI.</span>
+            </div>
+            <div class="configuracionOpcionControl">
+              <span class="configuracionEstado" id="estadoPermitirManual">DESACTIVADO</span>
+              <label class="interruptorConfiguracion">
+                <input type="checkbox" id="configPermitirManual">
+                <span></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="configuracionOpcion">
+            <div class="configuracionOpcionInfo">
+              <strong>Registro por scanner</strong>
+              <span>Permitir registrar asistencia mediante código de barras.</span>
+            </div>
+            <div class="configuracionOpcionControl">
+              <span class="configuracionEstado" id="estadoPermitirScanner">DESACTIVADO</span>
+              <label class="interruptorConfiguracion">
+                <input type="checkbox" id="configPermitirScanner">
+                <span></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="configuracionOpcion">
+            <div class="configuracionOpcionInfo">
+              <strong>Bloquear duplicado diario</strong>
+              <span>Impedir que un alumno registre asistencia más de una vez al día.</span>
+            </div>
+            <div class="configuracionOpcionControl">
+              <span class="configuracionEstado" id="estadoBloquearDuplicado">DESACTIVADO</span>
+              <label class="interruptorConfiguracion">
+                <input type="checkbox" id="configBloquearDuplicado">
+                <span></span>
+              </label>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <section class="configuracionSeccion">
+        <div class="configuracionSeccionCabecera">
+          <div class="configuracionIcono">
+            <span class="material-symbols-outlined">badge</span>
+          </div>
+          <div>
+            <h3>Personal</h3>
+            <p>Reglas para el control de entrada y salida.</p>
+          </div>
+        </div>
+
+        <div class="configuracionOpciones">
+
+          <div class="configuracionOpcion configuracionNumero">
+            <div class="configuracionOpcionInfo">
+              <strong>Tiempo mínimo para salida</strong>
+              <span>Tiempo que debe transcurrir entre entrada y salida.</span>
+            </div>
+            <div class="configuracionValor">
+              <input type="number" id="configTiempoSalida" min="0" step="1">
+              <span>minutos</span>
+            </div>
+          </div>
+
+          <div class="configuracionOpcion">
+            <div class="configuracionOpcionInfo">
+              <strong>Exigir entrada previa</strong>
+              <span>La salida requiere una entrada registrada previamente.</span>
+            </div>
+            <div class="configuracionOpcionControl">
+              <span class="configuracionEstado" id="estadoEntradaPrevia">DESACTIVADO</span>
+              <label class="interruptorConfiguracion">
+                <input type="checkbox" id="configEntradaPrevia">
+                <span></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="configuracionOpcion">
+            <div class="configuracionOpcionInfo">
+              <strong>Bloquear salida de personal inactivo</strong>
+              <span>Impedir registros de salida para personal inactivo.</span>
+            </div>
+            <div class="configuracionOpcionControl">
+              <span class="configuracionEstado" id="estadoBloquearSalidaInactivo">DESACTIVADO</span>
+              <label class="interruptorConfiguracion">
+                <input type="checkbox" id="configBloquearSalidaInactivo">
+                <span></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="configuracionOpcion">
+            <div class="configuracionOpcionInfo">
+              <strong>Permitir entrada de personal inactivo</strong>
+              <span>Permitir registrar entrada a personal marcado como inactivo.</span>
+            </div>
+            <div class="configuracionOpcionControl">
+              <span class="configuracionEstado" id="estadoEntradaInactivo">DESACTIVADO</span>
+              <label class="interruptorConfiguracion">
+                <input type="checkbox" id="configEntradaInactivo">
+                <span></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="configuracionOpcion">
+            <div class="configuracionOpcionInfo">
+              <strong>Mostrar fotografía del personal</strong>
+              <span>Mostrar la fotografía al registrar entrada o salida.</span>
+            </div>
+            <div class="configuracionOpcionControl">
+              <span class="configuracionEstado" id="estadoMostrarFoto">DESACTIVADO</span>
+              <label class="interruptorConfiguracion">
+                <input type="checkbox" id="configMostrarFoto">
+                <span></span>
+              </label>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <section class="configuracionSeccion">
+        <div class="configuracionSeccionCabecera"><div class="configuracionIcono"><span class="material-symbols-outlined">schedule</span></div>
+        <div><h3>Turnos y cierre</h3><p>Ingreso y cierre por turno para FALTÓ automático.</p></div></div>
+        <div class="configuracionOpciones">
+          <div class="configuracionOpcion"><div class="configuracionOpcionInfo"><strong>Mañana ingreso / cierre</strong></div>
+          <div class="configuracionValor"><input type="time" id="configIngresoManana"><input type="time" id="configCierreManana"></div></div>
+          <div class="configuracionOpcion"><div class="configuracionOpcionInfo"><strong>Tarde ingreso / cierre</strong></div>
+          <div class="configuracionValor"><input type="time" id="configIngresoTarde"><input type="time" id="configCierreTarde"></div></div>
+          <div class="configuracionOpcion"><div class="configuracionOpcionInfo"><strong>Noche ingreso / cierre</strong></div>
+          <div class="configuracionValor"><input type="time" id="configIngresoNoche"><input type="time" id="configCierreNoche"></div></div>
+          <div class="configuracionOpcion"><div class="configuracionOpcionInfo"><strong>Cierre automático</strong><span>Activa trigger que marca FALTÓ al cierre.</span></div>
+          <div class="configuracionOpcionControl"><button type="button" id="btnActivarCierre" class="btnSecundarioReporte">Activar</button><button type="button" id="btnDesactivarCierre" class="btnSecundarioReporte">Desactivar</button></div></div>
+        </div>
+      </section>
+
+      <section class="configuracionSeccion">
+        <div class="configuracionSeccionCabecera">
+          <div class="configuracionIcono">
+            <span class="material-symbols-outlined">person_add</span>
+          </div>
+          <div>
+            <h3>Registro de alumnos</h3>
+            <p>Opciones para alumnos no registrados.</p>
+          </div>
+        </div>
+
+        <div class="configuracionOpciones">
+
+          <div class="configuracionOpcion">
+            <div class="configuracionOpcionInfo">
+              <strong>Mostrar código QR</strong>
+              <span>Mostrar el código QR del formulario cuando no se encuentre un alumno.</span>
+            </div>
+            <div class="configuracionOpcionControl">
+              <span class="configuracionEstado" id="estadoMostrarQR">DESACTIVADO</span>
+              <label class="interruptorConfiguracion">
+                <input type="checkbox" id="configMostrarQR">
+                <span></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="configuracionOpcion configuracionURL">
+            <div class="configuracionOpcionInfo">
+              <strong>URL del formulario</strong>
+              <span>Formulario utilizado para el registro de alumnos no registrados.</span>
+            </div>
+            <div class="configuracionCampoURL">
+              <span class="material-symbols-outlined">link</span>
+              <input type="url" id="configUrlFormulario" placeholder="https://forms.google.com/...">
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <section class="configuracionSeccion configuracionInstitucion">
+        <div class="configuracionSeccionCabecera">
+          <div class="configuracionIcono">
+            <span class="material-symbols-outlined">business</span>
+          </div>
+          <div>
+            <h3>Institución</h3>
+            <p>Identidad y recursos visuales de la institución.</p>
+          </div>
+        </div>
+
+        <div class="configuracionInstitucionContenido">
+
+          <div class="configuracionInstitucionNombre">
+            <div class="configuracionBloqueTitulo">
+              <div>
+                <strong>Nombre de la institución</strong>
+                <span>Nombre que identificará a la institución en el sistema.</span>
+              </div>
+              <span class="configuracionEstado configuracionEstadoActivo" id="estadoNombreInstitucion">
+                EN USO
+              </span>
+            </div>
+
+            <div class="nombreInstitucionActual">
+              <span class="material-symbols-outlined">domain</span>
+              <div>
+                <small>Nombre actualmente en uso</small>
+                <strong id="nombreInstitucionActual">Sin configurar</strong>
+              </div>
+            </div>
+
+            <div class="nombreInstitucionEditar">
+              <label for="configNombreInstitucion">Nuevo nombre de institución</label>
+              <input
+                type="text"
+                id="configNombreInstitucion"
+                placeholder="Ingrese el nombre de la institución"
+              >
+            </div>
+          </div>
+
+          <div class="recursoInstitucional">
+            <div class="recursoInstitucionalCabecera">
+              <div>
+                <strong>Logo institucional</strong>
+                <span>Logotipo utilizado en la interfaz del sistema.</span>
+              </div>
+              <span class="recursoEstado" id="estadoLogoInstitucional">
+                SIN CONFIGURAR
+              </span>
+            </div>
+
+            <div class="recursoInstitucionalContenido">
+              <div class="recursoVistaPrevia recursoLogo">
+                <img id="vistaLogoActual" alt="Logo institucional actual">
+                <div id="logoSinConfigurar" class="recursoSinImagen">
+                  <span class="material-symbols-outlined">image</span>
+                  <span>No hay logo configurado</span>
+                </div>
+              </div>
+
+              <div class="recursoInstitucionalAccion">
+                <div class="recursoActualTexto">
+                  <span class="material-symbols-outlined">verified</span>
+                  <div>
+                    <strong>Logo actual</strong>
+                    <span id="textoLogoActual">No hay un logo en uso.</span>
+                  </div>
+                </div>
+
+                <label class="selectorRecurso">
+                  <span class="material-symbols-outlined">upload</span>
+                  Seleccionar nuevo logo
+                  <input
+                    type="file"
+                    id="configLogoInstitucional"
+                    accept="image/jpeg,image/png,image/webp"
+                  >
+                </label>
+
+                <div id="nuevoLogoContenedor" class="nuevoRecursoSeleccionado">
+                  <img id="vistaNuevoLogo" alt="Nuevo logo seleccionado">
+                  <div>
+                    <strong>Nuevo logo seleccionado</strong>
+                    <span id="nombreNuevoLogo"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="recursoInstitucional">
+            <div class="recursoInstitucionalCabecera">
+              <div>
+                <strong>Imagen de fondo del Registro de Asistencia</strong>
+                <span>Imagen utilizada como fondo visual en la pantalla de asistencia.</span>
+              </div>
+              <span class="recursoEstado" id="estadoImagenFondo">
+                SIN CONFIGURAR
+              </span>
+            </div>
+
+            <div class="recursoInstitucionalContenido">
+              <div class="recursoVistaPrevia recursoFondo">
+                <img id="vistaFondoActual" alt="Imagen de fondo actual">
+                <div id="fondoSinConfigurar" class="recursoSinImagen">
+                  <span class="material-symbols-outlined">image</span>
+                  <span>No hay imagen configurada</span>
+                </div>
+              </div>
+
+              <div class="recursoInstitucionalAccion">
+                <div class="recursoActualTexto">
+                  <span class="material-symbols-outlined">verified</span>
+                  <div>
+                    <strong>Imagen actual</strong>
+                    <span id="textoFondoActual">No hay una imagen en uso.</span>
+                  </div>
+                </div>
+
+                <label class="selectorRecurso">
+                  <span class="material-symbols-outlined">upload</span>
+                  Seleccionar nueva imagen
+                  <input
+                    type="file"
+                    id="configImagenFondo"
+                    accept="image/jpeg,image/png,image/webp"
+                  >
+                </label>
+
+                <div id="nuevoFondoContenedor" class="nuevoRecursoSeleccionado">
+                  <img id="vistaNuevoFondo" alt="Nueva imagen seleccionada">
+                  <div>
+                    <strong>Nueva imagen seleccionada</strong>
+                    <span id="nombreNuevoFondo"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+    </div>
+
+    <div class="configuracionAcciones">
+      <button type="button" id="btnGuardarConfiguracion">
+        <span class="material-symbols-outlined">save</span>
+        Guardar cambios
+      </button>
+    </div>
+  `;
+
+    const token = obtenerToken();
+
+    google.script.run
+      .withSuccessHandler(resultado => {
+        if (manejarRespuestaAutorizacion(resultado)) return;
+
+        if (!resultado || resultado.estado !== "OK") {
+          mostrarNotificacion(
+            resultado?.mensaje || "No se pudo cargar la configuración.",
+            "error"
+          );
+          return;
+        }
+
+        const c = resultado.configuraciones;
+
+        document.getElementById("configTiempoSalida").value = c.TIEMPO_MINIMO_SALIDA;
+        document.getElementById("configIngresoManana").value = c.HORA_INGRESO_MANANA;
+        document.getElementById("configCierreManana").value = c.HORA_CIERRE_MANANA;
+        document.getElementById("configIngresoTarde").value = c.HORA_INGRESO_TARDE;
+        document.getElementById("configCierreTarde").value = c.HORA_CIERRE_TARDE;
+        document.getElementById("configIngresoNoche").value = c.HORA_INGRESO_NOCHE;
+        document.getElementById("configCierreNoche").value = c.HORA_CIERRE_NOCHE;
+        document.getElementById("configPermitirManual").checked = c.PERMITIR_REGISTRO_MANUAL;
+        document.getElementById("configPermitirScanner").checked = c.PERMITIR_REGISTRO_SCANNER;
+        document.getElementById("configBloquearDuplicado").checked = c.BLOQUEAR_DUPLICADO_DIARIO;
+        document.getElementById("configEntradaPrevia").checked = c.EXIGIR_ENTRADA_PREVIA_SALIDA;
+        document.getElementById("configBloquearSalidaInactivo").checked = c.BLOQUEAR_SALIDA_PERSONAL_INACTIVO;
+        document.getElementById("configEntradaInactivo").checked = c.PERMITIR_ENTRADA_PERSONAL_INACTIVO;
+        document.getElementById("configMostrarFoto").checked = c.MOSTRAR_FOTO_PERSONAL;
+        document.getElementById("configMostrarQR").checked = c.MOSTRAR_QR_REGISTRO_ALUMNO;
+        document.getElementById("configUrlFormulario").value = c.URL_FORMULARIO_REGISTRO_ALUMNO;
+        document.getElementById("configNombreInstitucion").value = c.NOMBRE_INSTITUCION;
+
+        const nombreActual = String(c.NOMBRE_INSTITUCION || "").trim();
+        const nombreActualElemento = document.getElementById("nombreInstitucionActual");
+        const estadoNombre = document.getElementById("estadoNombreInstitucion");
+
+        if (nombreActual) {
+          nombreActualElemento.textContent = nombreActual;
+          estadoNombre.textContent = "EN USO";
+          estadoNombre.classList.add("configuracionEstadoActivo");
+        } else {
+          nombreActualElemento.textContent = "Sin configurar";
+          estadoNombre.textContent = "SIN CONFIGURAR";
+          estadoNombre.classList.remove("configuracionEstadoActivo");
+        }
+
+        actualizarEstadosConfiguracion();
+        pintarEstadoCierre_();
+        cargarVistaPreviaRecursos();
+        configurarPrevisualizacionRecursos();
+      })
+      .withFailureHandler(error => {
+        console.error(error);
+        mostrarNotificacion(
+          "Ocurrió un error al cargar la configuración.",
+          "error"
+        );
+      })
+      .obtenerConfiguracionesSistema(token);
+  }
+
+  function actualizarEstadosConfiguracion() {
+    const estados = [
+      ["configPermitirManual", "estadoPermitirManual"],
+      ["configPermitirScanner", "estadoPermitirScanner"],
+      ["configBloquearDuplicado", "estadoBloquearDuplicado"],
+      ["configEntradaPrevia", "estadoEntradaPrevia"],
+      ["configBloquearSalidaInactivo", "estadoBloquearSalidaInactivo"],
+      ["configEntradaInactivo", "estadoEntradaInactivo"],
+      ["configMostrarFoto", "estadoMostrarFoto"],
+      ["configMostrarQR", "estadoMostrarQR"]
+    ];
+
+    estados.forEach(([idInput, idEstado]) => {
+      const input = document.getElementById(idInput);
+      const estado = document.getElementById(idEstado);
+
+      if (!input || !estado) return;
+
+      estado.textContent = input.checked ? "ACTIVADO" : "DESACTIVADO";
+      estado.classList.toggle("activo", input.checked);
+
+      input.addEventListener("change", () => {
+        estado.textContent = input.checked ? "ACTIVADO" : "DESACTIVADO";
+        estado.classList.toggle("activo", input.checked);
+      });
+    });
+  }
+
+  function pintarEstadoCierre_() {
+    google.script.run.withSuccessHandler(r => {
+      const act = document.getElementById("btnActivarCierre");
+      const des = document.getElementById("btnDesactivarCierre");
+      if (!act || !des) return;
+      const n = (r && r.estado === "OK") ? r.activos : 0;
+      act.style.background = n > 0 ? "#16834b" : "";
+      act.style.color = n > 0 ? "#fff" : "";
+      des.style.background = n > 0 ? "" : "#c62828";
+      des.style.color = n > 0 ? "" : "#fff";
+    }).obtenerEstadoTriggerCierre();
+  }
+
+  function cargarVistaPreviaRecursos() {
+    google.script.run
+      .withSuccessHandler(resultado => {
+        if (!resultado || resultado.estado !== "OK") return;
+
+        const logo = document.getElementById("vistaLogoActual");
+        const fondo = document.getElementById("vistaFondoActual");
+        const logoSinConfigurar = document.getElementById("logoSinConfigurar");
+        const fondoSinConfigurar = document.getElementById("fondoSinConfigurar");
+        const estadoLogo = document.getElementById("estadoLogoInstitucional");
+        const estadoFondo = document.getElementById("estadoImagenFondo");
+        const textoLogo = document.getElementById("textoLogoActual");
+        const textoFondo = document.getElementById("textoFondoActual");
+
+        if (resultado.logoInstitucional) {
+          logo.src = resultado.logoInstitucional;
+          logo.style.display = "block";
+          logoSinConfigurar.style.display = "none";
+          estadoLogo.textContent = "EN USO";
+          estadoLogo.classList.add("activo");
+          textoLogo.textContent = "Este es el logo utilizado actualmente.";
+        } else {
+          logo.style.display = "none";
+          logoSinConfigurar.style.display = "flex";
+          estadoLogo.textContent = "SIN CONFIGURAR";
+          estadoLogo.classList.remove("activo");
+          textoLogo.textContent = "No hay un logo en uso.";
+        }
+
+        if (resultado.imagenFondoAsistencia) {
+          fondo.src = resultado.imagenFondoAsistencia;
+          fondo.style.display = "block";
+          fondoSinConfigurar.style.display = "none";
+          estadoFondo.textContent = "EN USO";
+          estadoFondo.classList.add("activo");
+          textoFondo.textContent = "Esta es la imagen utilizada actualmente.";
+        } else {
+          fondo.style.display = "none";
+          fondoSinConfigurar.style.display = "flex";
+          estadoFondo.textContent = "SIN CONFIGURAR";
+          estadoFondo.classList.remove("activo");
+          textoFondo.textContent = "No hay una imagen en uso.";
+        }
+      })
+      .withFailureHandler(error => {
+        console.error(error);
+      })
+      .obtenerRecursosPublicos();
+  }
+
+  function configurarPrevisualizacionRecursos() {
+    const inputLogo = document.getElementById("configLogoInstitucional");
+    const inputFondo = document.getElementById("configImagenFondo");
+
+    inputLogo.addEventListener("change", () => {
+      mostrarPrevisualizacionRecurso(
+        inputLogo,
+        "vistaNuevoLogo",
+        "nombreNuevoLogo",
+        "nuevoLogoContenedor"
+      );
+    });
+
+    inputFondo.addEventListener("change", () => {
+      mostrarPrevisualizacionRecurso(
+        inputFondo,
+        "vistaNuevoFondo",
+        "nombreNuevoFondo",
+        "nuevoFondoContenedor"
+      );
+    });
+  }
+
+  function mostrarPrevisualizacionRecurso(input, idImagen, idNombre, idContenedor) {
+    if (!input.files || !input.files[0]) return;
+
+    const archivo = input.files[0];
+
+    if (!["image/jpeg", "image/png", "image/webp"].includes(archivo.type)) {
+      input.value = "";
+      mostrarNotificacion(
+        "Solo se permiten imágenes JPG, PNG o WEBP.",
+        "error"
+      );
+      return;
+    }
+
+    if (archivo.size > 5 * 1024 * 1024) {
+      input.value = "";
+      mostrarNotificacion(
+        "La imagen no puede superar los 5 MB.",
+        "error"
+      );
+      return;
+    }
+
+    const lector = new FileReader();
+
+    lector.onload = () => {
+      document.getElementById(idImagen).src = lector.result;
+      document.getElementById(idNombre).textContent = archivo.name;
+      document.getElementById(idContenedor).classList.add("visible");
+    };
+
+    lector.readAsDataURL(archivo);
+  }
+
+  document.addEventListener("click", e => {
+    if (e.target.closest("#btnGuardarConfiguracion")) {
+      guardarConfiguracion();
+    }
+    if (e.target.closest("#btnActivarCierre")) {
+      const btn = document.getElementById("btnActivarCierre");
+      cambiarEstadoBoton(btn, true, "hourglass_top", "Activando...");
+      google.script.run
+        .withSuccessHandler(r => {
+          cambiarEstadoBoton(btn, false, "schedule", "Activar");
+          mostrarNotificacion(r && r.mensaje ? r.mensaje : "Cierre activado.", "exito");
+          pintarEstadoCierre_();
+        })
+        .withFailureHandler(err => {
+          console.error(err);
+          cambiarEstadoBoton(btn, false, "schedule", "Activar");
+          mostrarNotificacion("No se pudo activar el cierre.", "error");
+        })
+        .crearTriggerCierreAsistencia();
+    }
+    if (e.target.closest("#btnDesactivarCierre")) {
+      const btn = document.getElementById("btnDesactivarCierre");
+      cambiarEstadoBoton(btn, true, "hourglass_top", "Desactivando...");
+      google.script.run
+        .withSuccessHandler(r => {
+          cambiarEstadoBoton(btn, false, "schedule", "Desactivar");
+          mostrarNotificacion(r && r.mensaje ? r.mensaje : "Cierre desactivado.", "exito");
+          pintarEstadoCierre_();
+        })
+        .withFailureHandler(err => {
+          console.error(err);
+          cambiarEstadoBoton(btn, false, "schedule", "Desactivar");
+          mostrarNotificacion("No se pudo desactivar el cierre.", "error");
+        })
+        .eliminarTriggerCierreAsistencia();
+    }
+  });
+
+  function guardarConfiguracion() {
+    const token = obtenerToken();
+    const btn = document.getElementById("btnGuardarConfiguracion");
+    const inputLogo = document.getElementById("configLogoInstitucional");
+    const inputFondo = document.getElementById("configImagenFondo");
+    const tiempo = Number(document.getElementById("configTiempoSalida").value);
+
+    if (!Number.isFinite(tiempo) || tiempo < 0) {
+      mostrarNotificacion(
+        "Ingrese un tiempo mínimo de salida válido.",
+        "error"
+      );
+      return;
+    }
+
+    const ingresoManana = document.getElementById("configIngresoManana").value.trim();
+    const cierreManana = document.getElementById("configCierreManana").value.trim();
+    const ingresoTarde = document.getElementById("configIngresoTarde").value.trim();
+    const cierreTarde = document.getElementById("configCierreTarde").value.trim();
+    const ingresoNoche = document.getElementById("configIngresoNoche").value.trim();
+    const cierreNoche = document.getElementById("configCierreNoche").value.trim();
+
+    const esHora = v => /^\d{2}:\d{2}$/.test(v);
+    if (!esHora(ingresoManana) || !esHora(cierreManana) || !esHora(ingresoTarde) || !esHora(cierreTarde) || !esHora(ingresoNoche) || !esHora(cierreNoche)) {
+      mostrarNotificacion(
+        "Ingrese horas válidas HH:MM para los 3 turnos.",
+        "error"
+      );
+      return;
+    }
+
+    const configuraciones = {
+      TIEMPO_MINIMO_SALIDA: Math.floor(tiempo),
+      HORA_INGRESO_MANANA: ingresoManana,
+      HORA_CIERRE_MANANA: cierreManana,
+      HORA_INGRESO_TARDE: ingresoTarde,
+      HORA_CIERRE_TARDE: cierreTarde,
+      HORA_INGRESO_NOCHE: ingresoNoche,
+      HORA_CIERRE_NOCHE: cierreNoche,
+      PERMITIR_REGISTRO_MANUAL: document.getElementById("configPermitirManual").checked,
+      PERMITIR_REGISTRO_SCANNER: document.getElementById("configPermitirScanner").checked,
+      BLOQUEAR_DUPLICADO_DIARIO: document.getElementById("configBloquearDuplicado").checked,
+      EXIGIR_ENTRADA_PREVIA_SALIDA: document.getElementById("configEntradaPrevia").checked,
+      BLOQUEAR_SALIDA_PERSONAL_INACTIVO: document.getElementById("configBloquearSalidaInactivo").checked,
+      PERMITIR_ENTRADA_PERSONAL_INACTIVO: document.getElementById("configEntradaInactivo").checked,
+      MOSTRAR_FOTO_PERSONAL: document.getElementById("configMostrarFoto").checked,
+      MOSTRAR_QR_REGISTRO_ALUMNO: document.getElementById("configMostrarQR").checked,
+      URL_FORMULARIO_REGISTRO_ALUMNO: document.getElementById("configUrlFormulario").value.trim(),
+      NOMBRE_INSTITUCION: document.getElementById("configNombreInstitucion").value.trim()
+    };
+
+    const subirRecurso = (input, tipo) => {
+      if (!input.files || !input.files[0]) {
+        return Promise.resolve(null);
+      }
+
+      const archivo = input.files[0];
+
+      if (!["image/jpeg", "image/png", "image/webp"].includes(archivo.type)) {
+        return Promise.reject(
+          new Error("Solo se permiten imágenes JPG, PNG o WEBP.")
+        );
+      }
+
+      if (archivo.size > 5 * 1024 * 1024) {
+        return Promise.reject(
+          new Error("La imagen no puede superar los 5 MB.")
+        );
+      }
+
+      return new Promise((resolve, reject) => {
+        const lector = new FileReader();
+
+        lector.onload = () => {
+          google.script.run
+            .withSuccessHandler(resultado => {
+              if (resultado && resultado.estado === "GUARDADO") {
+                resolve(resultado.id);
+                return;
+              }
+
+              reject(
+                new Error(
+                  resultado?.mensaje || "No se pudo guardar el recurso."
+                )
+              );
+            })
+            .withFailureHandler(error => {
+              console.error(error);
+              reject(
+                new Error("Ocurrió un error al guardar la imagen.")
+              );
+            })
+            .guardarRecursoInstitucional({
+              token,
+              tipo,
+              nombre: archivo.name,
+              contenido: lector.result,
+              mimeType: archivo.type
+            });
+        };
+
+        lector.onerror = () => {
+          reject(
+            new Error("No se pudo leer la imagen seleccionada.")
+          );
+        };
+
+        lector.readAsDataURL(archivo);
+      });
+    };
+
+    cambiarEstadoBoton(
+      btn,
+      true,
+      "hourglass_top",
+      "Guardando..."
+    );
+
+    Promise.all([
+      subirRecurso(inputLogo, "LOGO_INSTITUCIONAL"),
+      subirRecurso(inputFondo, "IMAGEN_FONDO_ASISTENCIA")
+    ])
+      .then(([logoId, fondoId]) => {
+        if (logoId) {
+          configuraciones.LOGO_INSTITUCIONAL = logoId;
+        }
+
+        if (fondoId) {
+          configuraciones.IMAGEN_FONDO_ASISTENCIA = fondoId;
+        }
+
+        google.script.run
+          .withSuccessHandler(resultado => {
+            cambiarEstadoBoton(
+              btn,
+              false,
+              "save",
+              "Guardar cambios"
+            );
+
+            if (manejarRespuestaAutorizacion(resultado)) return;
+
+            if (resultado && resultado.estado === "GUARDADO") {
+              inputLogo.value = "";
+              inputFondo.value = "";
+
+              mostrarNotificacion(
+                resultado.mensaje,
+                "exito"
+              );
+              return;
+            }
+
+            mostrarNotificacion(
+              resultado?.mensaje || "No se pudo guardar la configuración.",
+              "error"
+            );
+          })
+          .withFailureHandler(error => {
+            console.error(error);
+
+            cambiarEstadoBoton(
+              btn,
+              false,
+              "save",
+              "Guardar cambios"
+            );
+
+            mostrarNotificacion(
+              "Ocurrió un error al guardar la configuración.",
+              "error"
+            );
+          })
+          .guardarConfiguracionesSistema({
+            token,
+            configuraciones
+          });
+      })
+      .catch(error => {
+        cambiarEstadoBoton(
+          btn,
+          false,
+          "save",
+          "Guardar cambios"
+        );
+
+        mostrarNotificacion(
+          error.message || "No se pudo guardar el recurso.",
+          "error"
+        );
+      });
+  }
+
+  configurarOpcionMenu(menuConfiguracion, mostrarConfiguracion);
+</script>

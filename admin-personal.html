@@ -1,0 +1,130 @@
+<script>
+    function mostrarPersonal() {
+        contenidoPrincipal.innerHTML = `
+    <div class="encabezadoModulo">
+      <div>
+        <h2>Personal</h2>
+        <p>Gestión del personal registrado.</p>
+      </div>
+      <div>
+        <button type="button" id="btnNuevoPersonal">
+          <span class="material-symbols-outlined">person_add</span>
+          Nuevo personal
+        </button>
+        <button type="button" id="btnEliminarPersonal" disabled>
+          <span class="material-symbols-outlined">person_remove</span>
+          Eliminar personal
+        </button>
+      </div>
+    </div>
+
+    <div id="mensajePersonal" class="mensajeModulo"></div>
+
+    <div class="buscadorAlumnos">
+      <input type="text" id="buscarPersonal" placeholder="Buscar por DNI, nombre o apellido..." autocomplete="off">
+      <button type="button" id="btnBuscarPersonal">
+        <span class="material-symbols-outlined">search</span>
+        Buscar
+      </button>
+    </div>
+
+    <div class="tablaAlumnos">
+      <table>
+        <thead>
+          <tr>
+            <th>DNI</th>
+            <th>Nombre</th>
+            <th>Apellidos</th>
+            <th>Tipo</th>
+            <th>Cargo</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tablaPersonalBody">
+          <tr>
+            <td colspan="7">Cargando personal...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+
+        const tabla = document.getElementById("tablaPersonalBody");
+        const btnEliminar = document.getElementById("btnEliminarPersonal");
+        const buscarPersonal = document.getElementById("buscarPersonal");
+        const btnBuscar = document.getElementById("btnBuscarPersonal");
+
+        let personalSeleccionado = null;
+
+        google.script.run
+            .withSuccessHandler(respuesta => {
+                if (manejarRespuestaAutorizacion(respuesta)) return;
+
+                if (!respuesta || respuesta.estado !== "OK") {
+                    tabla.innerHTML = "<tr><td colspan='7'>No se pudo cargar el personal.</td></tr>";
+                    return;
+                }
+
+                const personal = respuesta.personal || [];
+
+                if (!personal.length) {
+                    tabla.innerHTML = "<tr><td colspan='7'>No hay personal registrado.</td></tr>";
+                    return;
+                }
+
+                tabla.innerHTML = "";
+
+                personal.forEach(persona => {
+                    const fila = document.createElement("tr");
+
+                    fila.innerHTML = `
+          <td>${escaparHTML(persona.dni)}</td>
+          <td>${escaparHTML(persona.nombre)}</td>
+          <td>${escaparHTML(persona.apellidos)}</td>
+          <td>${escaparHTML(persona.tipo)}</td>
+          <td>${escaparHTML(persona.cargo)}</td>
+          <td>${escaparHTML(persona.estado)}</td>
+          <td>
+            <button type="button" class="btnAccionPersonal" title="Editar personal">
+              <span class="material-symbols-outlined">edit</span>
+            </button>
+          </td>
+        `;
+
+                    fila.addEventListener("click", () => {
+                        tabla.querySelectorAll("tr").forEach(item => {
+                            item.classList.remove("filaAlumnoSeleccionada");
+                        });
+
+                        fila.classList.add("filaAlumnoSeleccionada");
+                        personalSeleccionado = persona;
+                        btnEliminar.disabled = false;
+                    });
+
+                    fila.querySelector(".btnAccionPersonal").addEventListener("click", e => {
+                        e.stopPropagation();
+                        mostrarFormularioEditarPersonal(persona);
+                    });
+
+                    tabla.appendChild(fila);
+                });
+            })
+            .withFailureHandler(error => {
+                console.error(error);
+                tabla.innerHTML = "<tr><td colspan='7'>Error al cargar el personal.</td></tr>";
+            })
+            .obtenerPersonal(obtenerToken());
+
+        document.getElementById("btnNuevoPersonal")
+            .addEventListener("click", mostrarFormularioNuevoPersonal);
+
+        btnEliminar.addEventListener("click", () => {
+            if (personalSeleccionado) mostrarFormularioEliminarPersonal(personalSeleccionado);
+        });
+
+        configurarBusqueda(buscarPersonal, btnBuscar, tabla);
+    }
+
+    configurarOpcionMenu(menuPersonal, mostrarPersonal);
+</script>

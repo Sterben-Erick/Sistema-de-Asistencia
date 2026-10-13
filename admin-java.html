@@ -1,0 +1,730 @@
+<script>
+  function cargarLectorExcel() {
+    return new Promise((resolve, reject) => {
+      if (window.XLSX) {
+        resolve();
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+      script.onload = resolve;
+      script.onerror = () => reject(new Error("No se pudo cargar el lector de Excel."));
+      document.head.appendChild(script);
+    });
+  }
+
+  function mostrarDialogImportarAlumnos() {
+    const anterior = document.getElementById("modalGuiaImportacion");
+    if (anterior) anterior.remove();
+    const modal = document.createElement("div");
+    modal.id = "modalGuiaImportacion";
+    modal.className = "modalConfirmacionSolicitud";
+    modal.innerHTML = `
+  <div class="modalConfirmacionSolicitudContenido" style="max-width:520px;text-align:center;">
+    <div class="modalConfirmacionSolicitudIcono aprobar">
+      <span class="material-symbols-outlined">upload_file</span>
+    </div>
+    <h3 style="margin:8px 0 12px;">Importar alumnos</h3>
+    <div style="text-align:left;background:#f8fafc;border:1px solid #e5e8ed;border-radius:10px;padding:12px 14px;font-size:13.5px;line-height:1.6;">
+      <div><b>1.</b> Descarga la plantilla.</div>
+      <div><b>2.</b> Completa sin cambiar encabezados.</div>
+      <div><b>3.</b> Selecciona el Excel para vista previa.</div>
+      <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;">
+        <span style="background:#fff;border:1px solid #d7dde6;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:700;">DNI</span>
+        <span style="background:#fff;border:1px solid #d7dde6;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:700;">NOMBRES</span>
+        <span style="background:#fff;border:1px solid #d7dde6;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:700;">APELLIDOS</span>
+        <span style="background:#fff;border:1px solid #d7dde6;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:700;">CARRERA</span>
+        <span style="background:#fff;border:1px solid #d7dde6;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:700;">CICLO</span>
+        <span style="background:#e7f6ed;border:1px solid #bfe3cd;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:700;">TURNO</span>
+      </div>
+      <div style="margin-top:8px;font-size:12px;color:#64748b;">TURNO solo: MAÑANA, TARDE o NOCHE.</div>
+    </div>
+    <div class="modalConfirmacionSolicitudAcciones" style="margin-top:18px;display:flex;gap:10px;justify-content:center;">
+      <button type="button" class="btnCancelarConfirmacion" id="btnGuiaCancelar">Cancelar</button>
+      <button type="button" class="btnCancelarConfirmacion" id="btnGuiaPlantilla">
+        <span class="material-symbols-outlined">download</span> Plantilla
+      </button>
+      <button type="button" class="btnConfirmarAprobacion" id="btnGuiaSeleccionar">
+        <span class="material-symbols-outlined">folder_open</span> Seleccionar Excel
+      </button>
+    </div>
+  </div>`;
+    document.body.appendChild(modal);
+    document.getElementById("btnGuiaCancelar").onclick = () => modal.remove();
+    document.getElementById("btnGuiaPlantilla").onclick = descargarPlantillaImportacionAlumnos;
+    document.getElementById("btnGuiaSeleccionar").onclick = () => {
+      modal.remove();
+      document.getElementById("archivoImportarAlumnos").click();
+    };
+  }
+
+  async function descargarPlantillaImportacionAlumnos() {
+    await cargarLectorExcel();
+    const datos = [
+      ["DNI", "NOMBRES", "APELLIDOS", "CARRERA", "CICLO", "TURNO"],
+      ["12345678", "JUAN", "PEREZ LOPEZ", "Computacion e Informatica", "I", "MAÑANA"],
+      ["87654321", "MARIA", "QUISPE MAMANI", "Enfermeria Tecnica", "II", "TARDE"]
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(datos);
+    ws['!cols'] = [{ wch: 12 }, { wch: 18 }, { wch: 22 }, { wch: 28 }, { wch: 10 }, { wch: 12 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Alumnos");
+    XLSX.writeFile(wb, "plantilla_alumnos.xlsx");
+  }
+
+  let importacionAlumnosPendiente = null;
+
+  function normalizarEncabezado(valor) {
+    return String(valor || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^A-Z0-9]/gi, "")
+      .toUpperCase();
+  }
+
+  function detectarColumnasImportacion(encabezados) {
+    const equivalencias = {
+      DNI: [
+        "DNI",
+        "DOCUMENTO",
+        "NUMERODOCUMENTO",
+        "NRODOCUMENTO",
+        "NRODEDOCUMENTO",
+        "NUMERODEDOCUMENTO"
+      ],
+      NOMBRES: [
+        "NOMBRE",
+        "NOMBRES"
+      ],
+      APELLIDOS: [
+        "APELLIDO",
+        "APELLIDOS"
+      ],
+      CARRERA: [
+        "CARRERA",
+        "CARRERAPROFESIONAL",
+        "PROGRAMA",
+        "PROGRAMADEESTUDIOS",
+        "ESPECIALIDAD"
+      ],
+      TURNO: ["TURNO",
+        "HORARIO",
+        "JORNADA"
+      ],
+      CICLO: [
+        "CICLO",
+        "SEMESTRE"
+      ]
+    };
+
+    const columnas = {};
+    const conflictos = [];
+
+    encabezados.forEach((encabezado, indice) => {
+      const normalizado = normalizarEncabezado(encabezado);
+      if (!normalizado) return;
+
+      const encontrados = Object.keys(equivalencias).filter(campo =>
+        equivalencias[campo].includes(normalizado)
+      );
+
+      if (encontrados.length !== 1) return;
+
+      const campo = encontrados[0];
+
+      if (columnas[campo] !== undefined) {
+        conflictos.push({
+          campo,
+          columnas: [columnas[campo], indice]
+        });
+        return;
+      }
+
+      columnas[campo] = indice;
+    });
+
+    const faltantes = Object.keys(equivalencias).filter(
+      campo => columnas[campo] === undefined
+    );
+
+    return {
+      columnas,
+      faltantes,
+      conflictos
+    };
+  }
+
+  function prepararRegistrosImportacion(filas, mapa, alumnosExistentes) {
+    const dnisExistentes = new Set(
+      alumnosExistentes.map(alumno =>
+        String(alumno.dni || "").replace(/\D/g, "")
+      )
+    );
+
+    const carrerasValidas = new Set([
+      "Asistencia Administrativa",
+      "Enfermeria Tecnica",
+      "Tecnica en Farmacia",
+      "Computacion e Informatica"
+    ]);
+    const ciclosValidos = new Set(["I", "II", "III", "IV", "V", "VI"]);
+    const turnosValidos = new Set(["MAÑANA", "TARDE", "NOCHE"]);
+
+    const dnisArchivo = new Set();
+    const registros = [];
+
+    for (let i = 1; i < filas.length; i++) {
+      const fila = filas[i];
+
+      const dni = String(fila[mapa.DNI] || "").replace(/\D/g, "");
+      const nombres = String(fila[mapa.NOMBRES] || "").trim();
+      const apellidos = String(fila[mapa.APELLIDOS] || "").trim();
+      const carrera = String(fila[mapa.CARRERA] || "").trim();
+      const ciclo = String(fila[mapa.CICLO] || "").trim().toUpperCase();
+      const turno = String(fila[mapa.TURNO] || "").trim().toUpperCase();
+
+      if (!dni && !nombres && !apellidos && !carrera && !ciclo && !turno) continue;
+
+      const errores = [];
+
+      if (!/^\d{8}$/.test(dni)) errores.push("DNI inválido");
+      if (!nombres) errores.push("Nombres obligatorios");
+      else if (!/^[A-Za-zÁÉÍÓÚÜÑáéíóúüñÀ-ÿ' -]+$/.test(nombres)) errores.push("Nombres inválidos");
+      if (!apellidos) errores.push("Apellidos obligatorios");
+      else if (!/^[A-Za-zÁÉÍÓÚÜÑáéíóúüñÀ-ÿ' -]+$/.test(apellidos)) errores.push("Apellidos inválidos");
+      if (!carrera) errores.push("Carrera obligatoria");
+      else if (!carrerasValidas.has(carrera)) errores.push("Carrera no válida");
+      if (!ciclo) errores.push("Ciclo obligatorio");
+      else if (!ciclosValidos.has(ciclo)) errores.push("Ciclo no válido");
+      if (!turno) errores.push("Turno obligatorio");
+      else if (!turnosValidos.has(turno)) errores.push("Turno no válido");
+
+      if (dni && dnisExistentes.has(dni)) errores.push("DNI ya registrado");
+      if (dni && dnisArchivo.has(dni)) errores.push("DNI duplicado en el Excel");
+      if (dni) dnisArchivo.add(dni);
+
+      registros.push({
+        fila: i + 1,
+        dni: dni,
+        nombre: nombres,
+        apellidos: apellidos,
+        carrera: carrera,
+        ciclo: ciclo,
+        turno: turno,
+        estado: errores.length ? "ERROR" : "LISTO",
+        errores: errores
+      });
+    }
+
+    return registros;
+  }
+
+  function mostrarVistaPreviaImportacion() {
+    if (!importacionAlumnosPendiente) return;
+
+    const { archivo, registros } = importacionAlumnosPendiente;
+    const listos = registros.filter(r => r.estado === "LISTO").length;
+    const errores = registros.length - listos;
+
+    const modalAnterior = document.getElementById("modalVistaPreviaImportacion");
+    if (modalAnterior) modalAnterior.remove();
+
+    const modal = document.createElement("div");
+    modal.id = "modalVistaPreviaImportacion";
+    modal.className = "modalConfirmacionSolicitud";
+
+    modal.innerHTML = `
+    <div class="modalConfirmacionSolicitudContenido" style="max-width:1200px;width:95%;max-height:90vh;display:flex;flex-direction:column;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;">
+        <div>
+          <h3>Vista previa de importación</h3>
+          <p style="margin-bottom:6px;">
+            Archivo: <strong>${escaparHTML(archivo)}</strong>
+          </p>
+          <span class="modalConfirmacionSolicitudInfo">
+            Revisa los registros antes de continuar. Ningún dato se ha guardado todavía.
+          </span>
+        </div>
+
+        <button type="button" id="btnCerrarVistaPrevia" title="Cerrar">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div style="display:flex;gap:20px;flex-wrap:wrap;margin:20px 0;">
+        <div>
+          <strong>${registros.length}</strong>
+          <span> registros encontrados</span>
+        </div>
+        <div>
+          <strong>${listos}</strong>
+          <span> listos para importar</span>
+        </div>
+        <div>
+          <strong>${errores}</strong>
+          <span> con errores o conflictos</span>
+        </div>
+      </div>
+
+      <div style="overflow:auto;flex:1;border:1px solid #ddd;border-radius:8px;">
+        <table style="width:100%;border-collapse:collapse;min-width:900px;">
+          <thead>
+            <tr>
+              <th style="padding:10px;text-align:left;">Fila</th>
+              <th style="padding:10px;text-align:left;">DNI</th>
+              <th style="padding:10px;text-align:left;">Nombres</th>
+              <th style="padding:10px;text-align:left;">Apellidos</th>
+              <th style="padding:10px;text-align:left;">Carrera</th>
+              <th style="padding:10px;text-align:left;">Ciclo</th>
+              <th style="padding:10px;text-align:left;">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${registros.map(registro => `
+              <tr>
+                <td style="padding:9px;">${registro.fila}</td>
+                <td style="padding:9px;">${escaparHTML(registro.dni || "-")}</td>
+                <td style="padding:9px;">${escaparHTML(registro.nombre || "-")}</td>
+                <td style="padding:9px;">${escaparHTML(registro.apellidos || "-")}</td>
+                <td style="padding:9px;">${escaparHTML(registro.carrera || "-")}</td>
+                <td style="padding:9px;">${escaparHTML(registro.ciclo || "-")}</td>
+                <td style="padding:9px;">
+                  <div>
+                    <strong>${registro.estado === "LISTO" ? "LISTO" : "REVISAR"}</strong>
+                    ${registro.errores.length
+        ? `<div style="font-size:12px;margin-top:4px;">${registro.errores.map(escaparHTML).join("<br>")}</div>`
+        : ""}
+                  </div>
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="modalConfirmacionSolicitudAcciones" style="margin-top:20px;">
+        <button type="button" class="btnCancelarConfirmacion" id="btnCancelarVistaPrevia">
+          Cancelar
+        </button>
+
+        <button type="button" class="btnConfirmarAprobacion" id="btnContinuarImportacion">
+          <span class="material-symbols-outlined">arrow_forward</span>
+          Continuar
+        </button>
+      </div>
+    </div>
+  `;
+
+    document.body.appendChild(modal);
+
+    const cerrar = () => modal.remove();
+
+    document.getElementById("btnCerrarVistaPrevia")
+      .addEventListener("click", cerrar);
+
+    document.getElementById("btnCancelarVistaPrevia")
+      .addEventListener("click", () => {
+        importacionAlumnosPendiente = null;
+        cerrar();
+      });
+
+    document.getElementById("btnContinuarImportacion")
+      .addEventListener("click", () => {
+        modal.remove();
+        mostrarConfirmacionImportacion();
+      });
+  }
+
+  function mostrarConfirmacionImportacion() {
+    if (!importacionAlumnosPendiente) return;
+
+    const registros = importacionAlumnosPendiente.registros;
+    const listos = registros.filter(r => r.estado === "LISTO").length;
+    const errores = registros.length - listos;
+
+    const modalAnterior = document.getElementById("modalConfirmacionImportacion");
+    if (modalAnterior) modalAnterior.remove();
+
+    const modal = document.createElement("div");
+    modal.id = "modalConfirmacionImportacion";
+    modal.className = "modalConfirmacionSolicitud";
+
+    modal.innerHTML = `
+    <div class="modalConfirmacionSolicitudContenido">
+      <div class="modalConfirmacionSolicitudIcono aprobar">
+        <span class="material-symbols-outlined">upload_file</span>
+      </div>
+
+      <h3>Confirmar importación</h3>
+
+      <p>
+        Se encontraron <strong>${registros.length}</strong> registros
+        en el archivo.
+      </p>
+
+      <span class="modalConfirmacionSolicitudInfo">
+        Se agregarán <strong>${listos}</strong> alumnos válidos.
+        ${errores
+        ? `<br>${errores} registros tienen errores o conflictos y no serán importados.`
+        : ""}
+      </span>
+
+      <p style="margin-top:15px;">
+        ¿Deseas continuar con la importación?
+      </p>
+
+      <div class="modalConfirmacionSolicitudAcciones">
+        <button type="button" class="btnCancelarConfirmacion" id="btnCancelarConfirmacionImportacion">
+          Cancelar
+        </button>
+
+        <button type="button" class="btnConfirmarAprobacion" id="btnConfirmarImportacion">
+          <span class="material-symbols-outlined">check</span>
+          Importar ${listos} alumnos
+        </button>
+      </div>
+    </div>
+  `;
+
+    document.body.appendChild(modal);
+
+    document.getElementById("btnCancelarConfirmacionImportacion")
+      .addEventListener("click", () => modal.remove());
+
+    document.getElementById("btnConfirmarImportacion")
+      .addEventListener("click", () => {
+        if (!importacionAlumnosPendiente) return;
+
+        const btnConfirmar = document.getElementById("btnConfirmarImportacion");
+        const registros = importacionAlumnosPendiente.registros.filter(
+          registro => registro.estado === "LISTO"
+        );
+
+        if (!registros.length) {
+          mostrarNotificacion(
+            "No hay alumnos válidos para importar.",
+            "error"
+          );
+          return;
+        }
+
+        cambiarEstadoBoton(
+          btnConfirmar,
+          true,
+          "hourglass_top",
+          "Importando..."
+        );
+
+        google.script.run
+          .withSuccessHandler(resultado => {
+            if (manejarRespuestaAutorizacion(resultado)) {
+              cambiarEstadoBoton(
+                btnConfirmar,
+                false,
+                "check",
+                `Importar ${registros.length} alumnos`
+              );
+              return;
+            }
+
+            if (resultado && resultado.estado === "IMPORTADO") {
+              modal.remove();
+              importacionAlumnosPendiente = null;
+              mostrarAlumnos();
+
+              mostrarNotificacion(
+                resultado.importados
+                  ? `${resultado.importados} alumnos importados correctamente.`
+                  : "No se importó ningún alumno.",
+                resultado.importados ? "exito" : "error"
+              );
+
+              return;
+            }
+
+            cambiarEstadoBoton(
+              btnConfirmar,
+              false,
+              "check",
+              `Importar ${registros.length} alumnos`
+            );
+
+            mostrarNotificacion(
+              resultado && resultado.mensaje ||
+              "No se pudo completar la importación.",
+              "error"
+            );
+          })
+          .withFailureHandler(error => {
+            console.error(error);
+
+            cambiarEstadoBoton(
+              btnConfirmar,
+              false,
+              "check",
+              `Importar ${registros.length} alumnos`
+            );
+
+            mostrarNotificacion(
+              "Ocurrió un error durante la importación.",
+              "error"
+            );
+          })
+          .importarAlumnos({
+            token: obtenerToken(),
+            registros
+          });
+      });
+  }
+
+  const TOKEN_SESION = "sesionToken";
+
+  const usuarioAdministrador = document.getElementById("usuarioAdministrador");
+  const btnCerrarSesion = document.getElementById("btnCerrarSesion");
+  const menuInicio = document.getElementById("menuInicio");
+  const menuAlumnos = document.getElementById("menuAlumnos");
+  const menuPersonal = document.getElementById("menuPersonal");
+  const menuReportes = document.getElementById("menuReportes");
+  const menuUsuarios = document.getElementById("menuUsuarios");
+  const menuConfiguracion = document.getElementById("menuConfiguracion");
+  const contenidoPrincipal = document.getElementById("contenidoPrincipal");
+
+  const opcionesMenu = [
+    menuInicio,
+    menuAlumnos,
+    menuPersonal,
+    menuReportes,
+    menuUsuarios,
+    menuConfiguracion
+  ];
+
+  function obtenerToken() {
+    return sessionStorage.getItem(TOKEN_SESION);
+  }
+
+  function escaparHTML(valor) {
+    return String(valor ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function mostrarNotificacion(texto, tipo = "info", duracion = 2000) {
+    let notificacion = document.getElementById("notificacionAdmin");
+
+    if (!notificacion) {
+      notificacion = document.createElement("div");
+      notificacion.id = "notificacionAdmin";
+      notificacion.className = "notificacionAdmin";
+      document.body.appendChild(notificacion);
+    }
+
+    const icono = tipo === "exito"
+      ? "check_circle"
+      : tipo === "error"
+        ? "error"
+        : "info";
+
+    notificacion.className = "notificacionAdmin " + tipo;
+    notificacion.innerHTML = `
+    <span class="material-symbols-outlined">${icono}</span>
+    <span>${escaparHTML(texto)}</span>
+  `;
+
+    requestAnimationFrame(() => {
+      notificacion.classList.add("visible");
+    });
+
+    clearTimeout(notificacion._temporizador);
+
+    notificacion._temporizador = setTimeout(() => {
+      notificacion.classList.remove("visible");
+    }, duracion);
+  }
+
+  function cambiarEstadoBoton(boton, bloqueado, icono, texto) {
+    boton.disabled = bloqueado;
+    boton.innerHTML = `
+    <span class="material-symbols-outlined">${icono}</span>
+    ${texto}
+  `;
+  }
+
+  function configurarBusqueda(input, boton, tabla) {
+    function buscar() {
+      const texto = input.value.trim().toLowerCase();
+
+      tabla.querySelectorAll("tr").forEach(fila => {
+        fila.style.display = !texto || fila.textContent.toLowerCase().includes(texto) ? "" : "none";
+      });
+    }
+
+    boton.addEventListener("click", buscar);
+
+    input.addEventListener("keydown", e => {
+      if (e.key === "Enter") buscar();
+    });
+  }
+
+  function manejarRespuestaAutorizacion(resultado, mostrarMensaje = true) {
+    if (!resultado) return false;
+
+    if (resultado.estado === "SESION_INVALIDA") {
+      if (mostrarMensaje) {
+        mostrarNotificacion(
+          resultado.mensaje || "La sesión ha expirado.",
+          "error"
+        );
+      }
+
+      setTimeout(cerrarSesionLocal, 800);
+      return true;
+    }
+
+    if (resultado.estado === "SIN_PERMISO") {
+      if (mostrarMensaje) {
+        mostrarNotificacion(
+          resultado.mensaje || "No tiene permisos para realizar esta operación.",
+          "error"
+        );
+      }
+
+      return true;
+    }
+
+    return false;
+  }
+
+  function comprobarSesion() {
+    const token = obtenerToken();
+
+    if (!token) {
+      volverAInicio();
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(resultado => {
+        if (!resultado || resultado.estado !== "SESION_VALIDA") {
+          cerrarSesionLocal();
+          return;
+        }
+
+        const nombre = String(resultado.nombre || "").trim();
+        const apellidos = String(resultado.apellidos || "").trim();
+        const rol = String(resultado.rol || "").trim().toUpperCase();
+
+        usuarioAdministrador.textContent =
+          "Sesión iniciada como: " +
+          nombre + " " +
+          apellidos +
+          " (" + rol + ")";
+
+        configurarMenu(rol);
+        marcarMenuActivo(menuInicio);
+        mostrarDashboard();
+      })
+      .withFailureHandler(error => {
+        console.error(error);
+        cerrarSesionLocal();
+      })
+      .validarSesion(token);
+  }
+
+  function configurarMenu(rol) {
+    rol = String(rol || "").trim().toUpperCase();
+
+    const administrador = rol === "ADMINISTRADOR";
+    const secretaria = rol === "SECRETARIA";
+    const coordinador = rol === "COORDINADOR";
+
+    if (!administrador && !secretaria && !coordinador) {
+      cerrarSesionLocal();
+      return;
+    }
+
+    menuPersonal.style.display = administrador ? "" : "none";
+    menuUsuarios.style.display = administrador ? "" : "none";
+    menuConfiguracion.style.display = administrador ? "" : "none";
+  }
+
+  function marcarMenuActivo(opcion) {
+    opcionesMenu.forEach(item => {
+      if (item) item.classList.remove("menuActivo");
+    });
+
+    if (opcion) opcion.classList.add("menuActivo");
+  }
+
+  function mostrarContenido(titulo, mensaje) {
+    contenidoPrincipal.innerHTML = `
+    <h2>${escaparHTML(titulo)}</h2>
+    <p>${escaparHTML(mensaje)}</p>
+  `;
+  }
+
+  // movido a admin-alumnos.html
+  // movido a admin-personal.html
+  // movido a admin-usuario.html
+  // movido a admin-formularios.html
+
+  function configurarOpcionMenu(elemento, accion) {
+    elemento.addEventListener("click", e => {
+      e.preventDefault();
+      marcarMenuActivo(elemento);
+      accion();
+    });
+  }
+
+  // movido a admin-dashboard.html
+  // movido a admin-reportes.html
+  // movido a admin-config.html
+
+  function volverAInicio() {
+    google.script.run
+      .withSuccessHandler(url => {
+        window.top.location.href = url;
+      })
+      .withFailureHandler(error => {
+        console.error(error);
+      })
+      .obtenerUrlAplicacion();
+  }
+
+  function cerrarSesionLocal() {
+    sessionStorage.removeItem(TOKEN_SESION);
+    sessionStorage.removeItem("usuarioSesion");
+    sessionStorage.removeItem("rolSesion");
+    volverAInicio();
+  }
+
+  btnCerrarSesion.addEventListener("click", () => {
+    const token = obtenerToken();
+
+    if (!token) {
+      cerrarSesionLocal();
+      return;
+    }
+
+    btnCerrarSesion.disabled = true;
+
+    google.script.run
+      .withSuccessHandler(cerrarSesionLocal)
+      .withFailureHandler(error => {
+        console.error(error);
+
+        btnCerrarSesion.disabled = false;
+
+        mostrarNotificacion(
+          "No se pudo cerrar la sesión correctamente.",
+          "error"
+        );
+      })
+      .cerrarSesion(token);
+  });
+
+  comprobarSesion();
+</script>

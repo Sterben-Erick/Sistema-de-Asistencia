@@ -1,0 +1,755 @@
+<script>
+    function crearFormularioAlumno(alumno = null, edicion = false) {
+        const modal = document.createElement("div");
+        modal.id = edicion ? "modalEditarAlumno" : "modalNuevoAlumno";
+
+        const titulo = edicion ? "Editar alumno" : "Nuevo alumno";
+        const descripcion = edicion
+            ? "Modificar información del alumno."
+            : "Registrar información del alumno.";
+        const prefijo = edicion ? "editar" : "nuevo";
+
+        modal.innerHTML = `
+    <div class="modalNuevoAlumnoContenido">
+      <div class="modalNuevoAlumnoCabecera">
+        <div>
+          <h2>${titulo}</h2>
+          <p>${descripcion}</p>
+        </div>
+
+        <button type="button" id="btnCerrarFormularioAlumno" class="btnCerrarModalAlumno">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="formularioAlumno">
+        <div class="campoAlumno">
+          <label for="${prefijo}AlumnoDni">DNI</label>
+          <input type="text" id="${prefijo}AlumnoDni" maxlength="8" inputmode="numeric" autocomplete="off" value="${alumno ? escaparHTML(alumno.dni) : ""}" ${edicion ? "readonly" : ""}>
+        </div>
+
+        <div class="campoAlumno">
+          <label for="${prefijo}AlumnoNombre">Nombre</label>
+          <input type="text" id="${prefijo}AlumnoNombre" autocomplete="off" value="${alumno ? escaparHTML(alumno.nombre) : ""}">
+        </div>
+
+        <div class="campoAlumno">
+          <label for="${prefijo}AlumnoApellidos">Apellidos</label>
+          <input type="text" id="${prefijo}AlumnoApellidos" autocomplete="off" value="${alumno ? escaparHTML(alumno.apellidos) : ""}">
+        </div>
+
+        <div class="campoAlumno">
+          <label for="${prefijo}AlumnoCarrera">Carrera</label>
+          <select id="${prefijo}AlumnoCarrera">
+          <option value="">Todas las carreras</option>
+          <option value="Asistencia Administrativa">Asistencia Administrativa</option>
+          <option value="Secretariado Ejecutivo">Secretariado Ejecutivo</option>
+          <option value="Enfermeria Tecnica">Enfermeria Tecnica</option>
+          <option value="Tecnica en Farmacia">Tecnica en Farmacia</option>
+          <option value="Farmacia Tecnica">Farmacia Tecnica</option>
+          <option value="Computacion e Informatica">Computacion e Informatica</option>
+          </select>
+        </div>
+
+        <div class="campoAlumno">
+          <label for="${prefijo}AlumnoCiclo">Ciclo</label>
+          <select id="${prefijo}AlumnoCiclo">
+            <option value="">Seleccione un ciclo</option>
+            <option value="I">I</option>
+            <option value="II">II</option>
+            <option value="III">III</option>
+            <option value="IV">IV</option>
+            <option value="V">V</option>
+            <option value="VI">VI</option>
+          </select>
+        </div>
+      </div>
+
+        <div class="campoAlumno">
+          <label for="${prefijo}AlumnoTurno">Turno</label>
+          <select id="${prefijo}AlumnoTurno">
+            <option value="">Seleccione un turno</option>
+            <option value="MAÑANA">MAÑANA</option>
+            <option value="TARDE">TARDE</option>
+            <option value="NOCHE">NOCHE</option>
+          </select>
+        </div>
+
+      <div class="modalNuevoAlumnoAcciones">
+        <button type="button" id="btnCancelarFormularioAlumno">Cancelar</button>
+
+        <button type="button" id="btnGuardarFormularioAlumno">
+          <span class="material-symbols-outlined">save</span>
+          ${edicion ? "Guardar cambios" : "Guardar alumno"}
+        </button>
+      </div>
+    </div>
+  `;
+
+        document.body.appendChild(modal);
+
+        const campoDni = document.getElementById(prefijo + "AlumnoDni");
+        const campoNombre = document.getElementById(prefijo + "AlumnoNombre");
+        const campoApellidos = document.getElementById(prefijo + "AlumnoApellidos");
+        const campoCarrera = document.getElementById(prefijo + "AlumnoCarrera");
+        const campoCiclo = document.getElementById(prefijo + "AlumnoCiclo");
+        const campoTurno = document.getElementById(prefijo + "AlumnoTurno");
+        const btnGuardar = document.getElementById("btnGuardarFormularioAlumno");
+
+        if (alumno) {
+            campoCarrera.value = alumno.carrera || "";
+            campoCiclo.value = alumno.ciclo || "";
+            campoTurno.value = alumno.turno || "";
+        }
+
+        function cerrar() {
+            modal.remove();
+        }
+
+        document.getElementById("btnCerrarFormularioAlumno")
+            .addEventListener("click", cerrar);
+
+        document.getElementById("btnCancelarFormularioAlumno")
+            .addEventListener("click", cerrar);
+
+        btnGuardar.addEventListener("click", () => {
+            const dni = campoDni.value.trim();
+            const nombre = campoNombre.value.trim();
+            const apellidos = campoApellidos.value.trim();
+            const carrera = campoCarrera.value;
+            const ciclo = campoCiclo.value;
+            const turno = campoTurno.value;
+
+            if (!dni) return campoDni.focus();
+            if (!nombre) return campoNombre.focus();
+            if (!apellidos) return campoApellidos.focus();
+            if (!carrera) return campoCarrera.focus();
+            if (!ciclo) return campoCiclo.focus();
+            if (!turno) return campoTurno.focus();
+
+            cambiarEstadoBoton(
+                btnGuardar,
+                true,
+                "hourglass_top",
+                "Guardando..."
+            );
+
+            const funcion = edicion ? "actualizarAlumno" : "registrarAlumno";
+
+            google.script.run
+                .withSuccessHandler(resultado => {
+                    cambiarEstadoBoton(
+                        btnGuardar,
+                        false,
+                        "save",
+                        edicion ? "Guardar cambios" : "Guardar alumno"
+                    );
+
+                    if (manejarRespuestaAutorizacion(resultado)) return;
+
+                    if (resultado && (
+                        resultado.estado === "ACTUALIZADO" ||
+                        resultado.estado === "REGISTRADO"
+                    )) {
+                        modal.remove();
+                        mostrarAlumnos();
+
+                        mostrarNotificacion(
+                            resultado.mensaje,
+                            "exito"
+                        );
+
+                        return;
+                    }
+
+                    mostrarNotificacion(
+                        resultado && resultado.mensaje || "No se pudo guardar el alumno.",
+                        "error"
+                    );
+                })
+                .withFailureHandler(error => {
+                    console.error(error);
+
+                    cambiarEstadoBoton(
+                        btnGuardar,
+                        false,
+                        "save",
+                        edicion ? "Guardar cambios" : "Guardar alumno"
+                    );
+
+                    mostrarNotificacion(
+                        edicion
+                            ? "Ocurrió un error al actualizar el alumno."
+                            : "Ocurrió un error al registrar el alumno.",
+                        "error"
+                    );
+                })[funcion]({
+                    dni,
+                    nombre,
+                    apellidos,
+                    carrera,
+                    ciclo,
+                    turno,
+                    token: obtenerToken()
+                });
+        });
+
+        campoDni.focus();
+    }
+
+    function crearFormularioPersonal(persona = null, edicion = false) {
+        const modal = document.createElement("div");
+        modal.id = edicion ? "modalEditarPersonal" : "modalNuevoPersonal";
+
+        const titulo = edicion ? "Editar personal" : "Nuevo personal";
+        const descripcion = edicion
+            ? "Modificar información del personal."
+            : "Registrar información del personal.";
+        const prefijo = edicion ? "editar" : "nuevo";
+
+        const fotoTemporal = "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+      <rect width="160" height="160" fill="#e9edf3"/>
+      <circle cx="80" cy="62" r="28" fill="#9aa6b2"/>
+      <path d="M35 140c4-31 21-48 45-48s41 17 45 48" fill="#9aa6b2"/>
+    </svg>
+  `);
+
+        let fotoActual = persona && persona.foto ? persona.foto : fotoTemporal;
+        if (edicion && persona && !persona.foto) {
+            const previewId = prefijo + "PersonalFotoPreview";
+            google.script.run
+                .withSuccessHandler(r => {
+                    if (r && r.estado === "OK" && r.foto) {
+                        const img = document.getElementById(previewId);
+                        if (img) img.src = r.foto;
+                    }
+                })
+                .obtenerFotoPersonalPorDni(obtenerToken(), persona.dni);
+        }
+
+        modal.innerHTML = `
+    <div class="modalNuevoAlumnoContenido">
+      <div class="modalNuevoAlumnoCabecera">
+        <div>
+          <h2>${titulo}</h2>
+          <p>${descripcion}</p>
+        </div>
+
+        <button type="button" id="btnCerrarFormularioPersonal" class="btnCerrarModalAlumno">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="formularioAlumno">
+        <div class="campoAlumno">
+          <label for="${prefijo}PersonalDni">DNI</label>
+          <input type="text" id="${prefijo}PersonalDni" maxlength="8" inputmode="numeric" autocomplete="off" value="${persona ? escaparHTML(persona.dni) : ""}" ${edicion ? "readonly" : ""}>
+        </div>
+
+        <div class="campoAlumno">
+          <label for="${prefijo}PersonalNombre">Nombre</label>
+          <input type="text" id="${prefijo}PersonalNombre" autocomplete="off" value="${persona ? escaparHTML(persona.nombre) : ""}">
+        </div>
+
+        <div class="campoAlumno">
+          <label for="${prefijo}PersonalApellidos">Apellidos</label>
+          <input type="text" id="${prefijo}PersonalApellidos" autocomplete="off" value="${persona ? escaparHTML(persona.apellidos) : ""}">
+        </div>
+
+        <div class="campoAlumno">
+          <label for="${prefijo}PersonalTipo">Tipo</label>
+          <select id="${prefijo}PersonalTipo">
+            <option value="">Seleccione un tipo</option>
+            <option value="Docente">Docente</option>
+            <option value="Administrativo">Administrativo</option>
+          </select>
+        </div>
+
+        <div class="campoAlumno">
+          <label for="${prefijo}PersonalCargo">Cargo</label>
+          <input type="text" id="${prefijo}PersonalCargo" autocomplete="off" value="${persona ? escaparHTML(persona.cargo) : ""}">
+        </div>
+
+        ${edicion ? `
+        <div class="campoAlumno">
+          <label for="${prefijo}PersonalEstado">Estado</label>
+          <select id="${prefijo}PersonalEstado">
+            <option value="ACTIVO">ACTIVO</option>
+            <option value="INACTIVO">INACTIVO</option>
+          </select>
+        </div>
+        `: ""}
+
+        <div class="campoAlumno">
+          <label>Fotografía</label>
+
+          <div style="display:flex;align-items:center;gap:15px;">
+            <div style="width:80px;height:80px;border-radius:50%;overflow:hidden;border:1px solid #ddd;flex-shrink:0;">
+              <img id="${prefijo}PersonalFotoPreview" src="${fotoActual}" alt="Fotografía" style="width:100%;height:100%;object-fit:cover;">
+            </div>
+
+            <div>
+              <input type="file" id="${prefijo}PersonalFoto" accept="image/jpeg,image/png" style="display:none;">
+
+              <button type="button" id="${prefijo}PersonalSeleccionarFoto">
+                <span class="material-symbols-outlined">photo_camera</span>
+                ${persona && persona.foto ? "Cambiar fotografía" : "Seleccionar fotografía"}
+              </button>
+
+              <p style="margin:6px 0 0;font-size:12px;">JPG o PNG</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modalNuevoAlumnoAcciones">
+        <button type="button" id="btnCancelarFormularioPersonal">
+          Cancelar
+        </button>
+
+        <button type="button" id="btnGuardarFormularioPersonal">
+          <span class="material-symbols-outlined">save</span>
+          ${edicion ? "Guardar cambios" : "Guardar personal"}
+        </button>
+      </div>
+    </div>
+  `;
+
+        document.body.appendChild(modal);
+
+        const dniInput = document.getElementById(prefijo + "PersonalDni");
+        const nombreInput = document.getElementById(prefijo + "PersonalNombre");
+        const apellidosInput = document.getElementById(prefijo + "PersonalApellidos");
+        const tipoInput = document.getElementById(prefijo + "PersonalTipo");
+        const cargoInput = document.getElementById(prefijo + "PersonalCargo");
+        const estadoInput = edicion ? document.getElementById(prefijo + "PersonalEstado") : null;
+        const fotoInput = document.getElementById(prefijo + "PersonalFoto");
+        const fotoPreview = document.getElementById(prefijo + "PersonalFotoPreview");
+        const btnSeleccionarFoto = document.getElementById(prefijo + "PersonalSeleccionarFoto");
+        const btnGuardar = document.getElementById("btnGuardarFormularioPersonal");
+
+        if (persona) {
+            tipoInput.value = persona.tipo || "";
+
+            if (estadoInput) {
+                estadoInput.value = persona.estado || "ACTIVO";
+            }
+        }
+
+        btnSeleccionarFoto.addEventListener("click", () => {
+            fotoInput.click();
+        });
+
+        fotoInput.addEventListener("change", function () {
+            const archivo = this.files[0];
+
+            if (!archivo) {
+                fotoPreview.src = fotoActual;
+                return;
+            }
+
+            if (!["image/jpeg", "image/png"].includes(archivo.type)) {
+                mostrarNotificacion(
+                    "Seleccione una fotografía JPG o PNG.",
+                    "error"
+                );
+                this.value = "";
+                fotoPreview.src = fotoActual;
+                return;
+            }
+
+            if (archivo.size > 5 * 1024 * 1024) {
+                mostrarNotificacion(
+                    "La fotografía no debe superar 5 MB.",
+                    "error"
+                );
+                this.value = "";
+                fotoPreview.src = fotoActual;
+                return;
+            }
+
+            const lector = new FileReader();
+
+            lector.onload = e => {
+                fotoPreview.src = e.target.result;
+            };
+
+            lector.readAsDataURL(archivo);
+        });
+
+        function cerrar() {
+            modal.remove();
+        }
+
+        document.getElementById("btnCerrarFormularioPersonal")
+            .addEventListener("click", cerrar);
+
+        document.getElementById("btnCancelarFormularioPersonal")
+            .addEventListener("click", cerrar);
+
+        btnGuardar.addEventListener("click", () => {
+            const dni = dniInput.value.trim();
+            const nombre = nombreInput.value.trim();
+            const apellidos = apellidosInput.value.trim();
+            const tipo = tipoInput.value;
+            const cargo = cargoInput.value.trim();
+
+            if (!dni) return dniInput.focus();
+            if (!nombre) return nombreInput.focus();
+            if (!apellidos) return apellidosInput.focus();
+            if (!tipo) return tipoInput.focus();
+            if (!cargo) return cargoInput.focus();
+
+            const datos = {
+                dni,
+                nombre,
+                apellidos,
+                tipo,
+                cargo,
+                token: obtenerToken()
+            };
+
+            if (edicion) {
+                const estado = estadoInput.value;
+
+                if (!estado) return estadoInput.focus();
+
+                datos.estado = estado;
+            }
+
+            const archivo = fotoInput.files[0];
+
+            function guardar(datosFinales) {
+                cambiarEstadoBoton(
+                    btnGuardar,
+                    true,
+                    "hourglass_top",
+                    "Guardando..."
+                );
+
+                const funcion = edicion ? "actualizarPersonal" : "registrarPersonal";
+
+                google.script.run
+                    .withSuccessHandler(resultado => {
+                        cambiarEstadoBoton(
+                            btnGuardar,
+                            false,
+                            "save",
+                            edicion ? "Guardar cambios" : "Guardar personal"
+                        );
+
+                        if (manejarRespuestaAutorizacion(resultado)) return;
+
+                        if (resultado && resultado.estado === "OK") {
+                            modal.remove();
+                            mostrarPersonal();
+
+                            mostrarNotificacion(
+                                resultado.mensaje,
+                                "exito"
+                            );
+
+                            return;
+                        }
+
+                        mostrarNotificacion(
+                            resultado && resultado.mensaje || "No se pudo guardar el personal.",
+                            "error"
+                        );
+                    })
+                    .withFailureHandler(error => {
+                        console.error(error);
+
+                        cambiarEstadoBoton(
+                            btnGuardar,
+                            false,
+                            "save",
+                            edicion ? "Guardar cambios" : "Guardar personal"
+                        );
+
+                        mostrarNotificacion(
+                            edicion
+                                ? "Ocurrió un error al actualizar el personal."
+                                : "Ocurrió un error al registrar el personal.",
+                            "error"
+                        );
+                    })[funcion](datosFinales);
+            }
+
+            if (!archivo) {
+                guardar(datos);
+                return;
+            }
+
+            const lector = new FileReader();
+
+            lector.onload = e => {
+                datos.foto = {
+                    base64: e.target.result,
+                    tipo: archivo.type
+                };
+
+                guardar(datos);
+            };
+
+            lector.onerror = () => {
+                mostrarNotificacion(
+                    "No se pudo leer la fotografía seleccionada.",
+                    "error"
+                );
+            };
+
+            lector.readAsDataURL(archivo);
+        });
+
+        dniInput.focus();
+    }
+
+    function mostrarFormularioNuevoAlumno() {
+        crearFormularioAlumno(null, false);
+    }
+
+    function mostrarFormularioEditarAlumno(alumno) {
+        crearFormularioAlumno(alumno, true);
+    }
+
+    function mostrarFormularioNuevoPersonal() {
+        crearFormularioPersonal(null, false);
+    }
+
+    function mostrarFormularioEditarPersonal(persona) {
+        crearFormularioPersonal(persona, true);
+    }
+
+    function crearModalEliminacion(configuracion) {
+        const modalAnterior = document.getElementById("modalEliminarAlumno");
+
+        if (modalAnterior) modalAnterior.remove();
+
+        const modal = document.createElement("div");
+        modal.id = "modalEliminarAlumno";
+
+        modal.innerHTML = `
+    <div class="modalEliminarAlumnoContenido">
+      <div class="modalEliminarAlumnoCabecera">
+        <div class="iconoEliminarAlumno">
+          <span class="material-symbols-outlined">delete</span>
+        </div>
+
+        <div>
+          <h2>${escaparHTML(configuracion.titulo)}</h2>
+          <p>${escaparHTML(configuracion.descripcion)}</p>
+        </div>
+      </div>
+
+      <div class="datosAlumnoEliminar">
+        ${configuracion.detalle}
+      </div>
+
+      ${configuracion.solicitarMotivo ? `
+        <div class="campoEliminarAlumno">
+          <label for="motivoEliminarRegistro">Motivo de eliminación</label>
+          <textarea id="motivoEliminarRegistro" placeholder="Indique el motivo de la eliminación..."></textarea>
+        </div>
+      `: ""}
+
+      <div class="modalEliminarAlumnoAcciones">
+        <button type="button" id="btnCancelarEliminarRegistro">
+          <span class="material-symbols-outlined">close</span>
+          Cancelar
+        </button>
+
+        <button type="button" id="btnConfirmarEliminarRegistro">
+          <span class="material-symbols-outlined">delete</span>
+          Eliminar
+        </button>
+      </div>
+    </div>
+  `;
+
+        document.body.appendChild(modal);
+
+        const btnCancelar = document.getElementById("btnCancelarEliminarRegistro");
+        const btnConfirmar = document.getElementById("btnConfirmarEliminarRegistro");
+        const motivo = configuracion.solicitarMotivo
+            ? document.getElementById("motivoEliminarRegistro")
+            : null;
+
+        btnCancelar.addEventListener("click", () => {
+            modal.remove();
+        });
+
+        return {
+            modal,
+            btnConfirmar,
+            motivo
+        };
+    }
+
+    function mostrarFormularioEliminarAlumno(alumno) {
+        if (!alumno) return;
+
+        const ventana = crearModalEliminacion({
+            titulo: "Eliminar alumno",
+            descripcion: "Esta acción eliminará al alumno de la lista de estudiantes.",
+            solicitarMotivo: true,
+            detalle: `
+      <strong>${escaparHTML(alumno.nombre)} ${escaparHTML(alumno.apellidos)}</strong>
+      <span>
+        DNI: ${escaparHTML(alumno.dni)}
+        · ${escaparHTML(alumno.carrera)}
+        · Ciclo ${escaparHTML(alumno.ciclo)}
+      </span>
+    `
+        });
+
+        ventana.btnConfirmar.addEventListener("click", () => {
+            const texto = ventana.motivo.value.trim();
+
+            if (!texto) {
+                mostrarNotificacion(
+                    "Debe indicar el motivo de la eliminación.",
+                    "error"
+                );
+
+                ventana.motivo.focus();
+                return;
+            }
+
+            cambiarEstadoBoton(
+                ventana.btnConfirmar,
+                true,
+                "hourglass_top",
+                "Eliminando..."
+            );
+
+            google.script.run
+                .withSuccessHandler(respuesta => {
+                    if (manejarRespuestaAutorizacion(respuesta)) return;
+
+                    if (respuesta && respuesta.estado === "ELIMINADO") {
+                        ventana.modal.remove();
+                        mostrarAlumnos();
+
+                        mostrarNotificacion(
+                            respuesta.mensaje || "Alumno eliminado correctamente.",
+                            "exito"
+                        );
+
+                        return;
+                    }
+
+                    cambiarEstadoBoton(
+                        ventana.btnConfirmar,
+                        false,
+                        "delete",
+                        "Eliminar"
+                    );
+
+                    mostrarNotificacion(
+                        respuesta && respuesta.mensaje || "No se pudo eliminar el alumno.",
+                        "error"
+                    );
+                })
+                .withFailureHandler(error => {
+                    console.error(error);
+
+                    cambiarEstadoBoton(
+                        ventana.btnConfirmar,
+                        false,
+                        "delete",
+                        "Eliminar"
+                    );
+
+                    mostrarNotificacion(
+                        "Ocurrió un error al eliminar el alumno.",
+                        "error"
+                    );
+                })
+                .eliminarAlumno({
+                    dni: alumno.dni,
+                    motivo: texto,
+                    token: obtenerToken()
+                });
+        });
+
+        ventana.motivo.focus();
+    }
+
+    function mostrarFormularioEliminarPersonal(persona) {
+        if (!persona) return;
+
+        const ventana = crearModalEliminacion({
+            titulo: "Eliminar personal",
+            descripcion: "Esta acción eliminará al personal de la lista registrada.",
+            solicitarMotivo: false,
+            detalle: `
+      <strong>${escaparHTML(persona.nombre)} ${escaparHTML(persona.apellidos)}</strong>
+      <span>
+        DNI: ${escaparHTML(persona.dni)}
+        · ${escaparHTML(persona.tipo)}
+        · ${escaparHTML(persona.cargo)}
+      </span>
+    `
+        });
+
+        ventana.btnConfirmar.addEventListener("click", () => {
+            cambiarEstadoBoton(
+                ventana.btnConfirmar,
+                true,
+                "hourglass_top",
+                "Eliminando..."
+            );
+
+            google.script.run
+                .withSuccessHandler(respuesta => {
+                    if (manejarRespuestaAutorizacion(respuesta)) return;
+
+                    if (respuesta && respuesta.estado === "OK") {
+                        ventana.modal.remove();
+                        mostrarPersonal();
+
+                        mostrarNotificacion(
+                            respuesta.mensaje || "Personal eliminado correctamente.",
+                            "exito"
+                        );
+
+                        return;
+                    }
+
+                    cambiarEstadoBoton(
+                        ventana.btnConfirmar,
+                        false,
+                        "delete",
+                        "Eliminar"
+                    );
+
+                    mostrarNotificacion(
+                        respuesta && respuesta.mensaje || "No se pudo eliminar el personal.",
+                        "error"
+                    );
+                })
+                .withFailureHandler(error => {
+                    console.error(error);
+
+                    cambiarEstadoBoton(
+                        ventana.btnConfirmar,
+                        false,
+                        "delete",
+                        "Eliminar"
+                    );
+
+                    mostrarNotificacion(
+                        "Ocurrió un error al eliminar el personal.",
+                        "error"
+                    );
+                })
+                .eliminarPersonal({
+                    dni: persona.dni,
+                    token: obtenerToken()
+                });
+        });
+    }
+
+</script>

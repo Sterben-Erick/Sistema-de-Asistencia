@@ -1,0 +1,486 @@
+<script>
+    function mostrarDashboard() {
+        contenidoPrincipal.innerHTML = `
+    <div class="dashboard">
+      <div class="dashboard-header">
+        <div>
+          <h2>Resumen general</h2>
+          <p id="dashboardFecha">Cargando información...</p>
+        </div>
+        <button type="button" class="dashboard-refresh" id="btnActualizarDashboard">
+          <span class="material-symbols-outlined">refresh</span>
+          Actualizar
+        </button>
+      </div>
+
+      <div id="dashboardEstado" class="dashboard-estado">
+        <span class="material-symbols-outlined">progress_activity</span>
+        Consultando información...
+      </div>
+
+      <div id="dashboardContenido" class="dashboard-contenido" style="display:none;">
+        <div class="dashboard-cards">
+          <div class="dashboard-card">
+            <div class="dashboard-card-icon">
+              <span class="material-symbols-outlined">how_to_reg</span>
+            </div>
+            <div>
+              <span>Asistencias de hoy</span>
+              <strong id="dashboardAsistenciasHoy">0</strong>
+            </div>
+          </div>
+
+          <div class="dashboard-card">
+            <div class="dashboard-card-icon">
+              <span class="material-symbols-outlined">school</span>
+            </div>
+            <div>
+              <span>Alumnos registrados</span>
+              <strong id="dashboardAlumnos">0</strong>
+            </div>
+          </div>
+
+          <div class="dashboard-card">
+            <div class="dashboard-card-icon">
+              <span class="material-symbols-outlined">badge</span>
+            </div>
+            <div>
+              <span>Personal activo</span>
+              <strong id="dashboardPersonal">0</strong>
+            </div>
+          </div>
+
+          <div class="dashboard-card">
+            <div class="dashboard-card-icon">
+              <span class="material-symbols-outlined">login</span>
+            </div>
+            <div>
+              <span>Entradas de personal</span>
+              <strong id="dashboardEntradas">0</strong>
+            </div>
+          </div>
+
+          <div class="dashboard-card">
+            <div class="dashboard-card-icon">
+              <span class="material-symbols-outlined">logout</span>
+            </div>
+            <div>
+              <span>Salidas de personal</span>
+              <strong id="dashboardSalidas">0</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid dashboard-grid-principal">
+          <section class="dashboard-panel dashboard-panel-grande">
+            <div class="dashboard-panel-header">
+              <div>
+                <h3>Asistencias</h3>
+                <span id="dashboardPeriodoDescripcion">Comportamiento de los últimos 7 días</span>
+              </div>
+            </div>
+
+            <div class="dashboard-periodos" id="dashboardPeriodos">
+              <button type="button" class="dashboard-periodo-btn activo" data-periodo="DIA">Por día</button>
+              <button type="button" class="dashboard-periodo-btn" data-periodo="SEMANA">Por semana</button>
+              <button type="button" class="dashboard-periodo-btn" data-periodo="MES">Por mes</button>
+              <button type="button" class="dashboard-periodo-btn" data-periodo="PERSONALIZADO">Personalizado</button>
+            </div>
+
+            <div id="dashboardPersonalizado" class="dashboard-personalizado" style="display:none;">
+              <div>
+                <label for="dashboardFechaInicio">Desde</label>
+                <input type="date" id="dashboardFechaInicio">
+              </div>
+
+              <div>
+                <label for="dashboardFechaFin">Hasta</label>
+                <input type="date" id="dashboardFechaFin">
+              </div>
+
+              <button type="button" id="btnAplicarDashboardPeriodo">
+                <span class="material-symbols-outlined">filter_alt</span>
+                Aplicar
+              </button>
+            </div>
+
+            <div id="dashboardGraficoDias" class="dashboard-chart"></div>
+          </section>
+
+          <section class="dashboard-panel">
+            <div class="dashboard-panel-header">
+              <div>
+                <h3>Por carrera</h3>
+                <span>Asistencias de estudiantes hoy</span>
+              </div>
+            </div>
+            <div id="dashboardGraficoCarreras" class="dashboard-bars"></div>
+          </section>
+        </div>
+
+        <div class="dashboard-grid">
+          <section class="dashboard-panel">
+            <div class="dashboard-panel-header">
+              <div>
+                <h3>Método de registro</h3>
+                <span>Distribución de las asistencias de hoy</span>
+              </div>
+            </div>
+            <div id="dashboardGraficoMetodo" class="dashboard-bars"></div>
+          </section>
+
+          <section class="dashboard-panel">
+            <div class="dashboard-panel-header">
+              <div>
+                <h3>Tipo de persona</h3>
+                <span>Registros realizados hoy</span>
+              </div>
+            </div>
+            <div id="dashboardGraficoTipo" class="dashboard-bars"></div>
+          </section>
+        </div>
+
+        <section class="dashboard-panel">
+          <div class="dashboard-panel-header">
+            <div>
+              <h3>Actividad reciente</h3>
+              <span>Últimos registros realizados</span>
+            </div>
+          </div>
+
+          <div class="dashboard-table-container">
+            <table class="dashboard-table">
+              <thead>
+                <tr>
+                  <th>DNI</th>
+                  <th>Hora</th>
+                  <th>Tipo</th>
+                  <th>Registro</th>
+                  <th>Método</th>
+                  <th>Carrera</th>
+                  <th>Ciclo</th>
+                </tr>
+              </thead>
+              <tbody id="dashboardUltimosRegistros"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+  `;
+
+        const botonesPeriodo = document.querySelectorAll(".dashboard-periodo-btn");
+        const personalizado = document.getElementById("dashboardPersonalizado");
+        const aplicar = document.getElementById("btnAplicarDashboardPeriodo");
+
+        botonesPeriodo.forEach(boton => {
+            boton.addEventListener("click", () => {
+                const periodo = boton.dataset.periodo;
+
+                botonesPeriodo.forEach(item => item.classList.remove("activo"));
+                boton.classList.add("activo");
+
+                personalizado.style.display = periodo === "PERSONALIZADO" ? "flex" : "none";
+
+                if (periodo !== "PERSONALIZADO") {
+                    cargarDashboard(periodo);
+                }
+            });
+        });
+
+        if (aplicar) {
+            aplicar.addEventListener("click", () => {
+                const fechaInicio = document.getElementById("dashboardFechaInicio").value;
+                const fechaFin = document.getElementById("dashboardFechaFin").value;
+
+                if (!fechaInicio || !fechaFin) {
+                    alert("Seleccione una fecha inicial y una fecha final.");
+                    return;
+                }
+
+                if (fechaInicio > fechaFin) {
+                    alert("La fecha inicial no puede ser mayor que la fecha final.");
+                    return;
+                }
+
+                cargarDashboard("PERSONALIZADO", fechaInicio, fechaFin);
+            });
+        }
+
+        document.getElementById("btnActualizarDashboard").addEventListener("click", () => {
+            const activo = document.querySelector(".dashboard-periodo-btn.activo");
+            const periodo = activo ? activo.dataset.periodo : "DIA";
+
+            if (periodo === "PERSONALIZADO") {
+                const fechaInicio = document.getElementById("dashboardFechaInicio").value;
+                const fechaFin = document.getElementById("dashboardFechaFin").value;
+
+                if (fechaInicio && fechaFin) {
+                    cargarDashboard(periodo, fechaInicio, fechaFin);
+                }
+
+                return;
+            }
+
+            cargarDashboard(periodo);
+        });
+
+        cargarDashboard("DIA");
+    }
+
+    function cargarDashboard(periodo = "DIA", fechaInicio = "", fechaFin = "") {
+        const token = obtenerToken();
+        const estado = document.getElementById("dashboardEstado");
+        const contenido = document.getElementById("dashboardContenido");
+        const boton = document.getElementById("btnActualizarDashboard");
+
+        if (!token) {
+            manejarRespuestaAutorizacion({
+                estado: "SESION_INVALIDA",
+                mensaje: "La sesión ha expirado."
+            });
+            return;
+        }
+
+        if (estado) {
+            estado.style.display = "flex";
+            estado.innerHTML = `
+      <span class="material-symbols-outlined dashboard-spinner">progress_activity</span>
+      Actualizando información...
+    `;
+        }
+
+        if (contenido) contenido.style.display = "none";
+        if (boton) boton.disabled = true;
+
+        const filtros = {
+            tipo: periodo,
+            fechaInicio,
+            fechaFin
+        };
+
+        google.script.run
+            .withSuccessHandler(respuesta => {
+                if (boton) boton.disabled = false;
+
+                if (!respuesta) {
+                    mostrarErrorDashboard("No se recibió información del servidor.");
+                    return;
+                }
+
+                if (respuesta.estado !== "OK") {
+                    manejarRespuestaAutorizacion(respuesta);
+                    return;
+                }
+
+                renderizarDashboard(respuesta);
+            })
+            .withFailureHandler(error => {
+                if (boton) boton.disabled = false;
+
+                mostrarErrorDashboard(
+                    error && error.message
+                        ? error.message
+                        : "No fue posible cargar el dashboard."
+                );
+            })
+            .obtenerDashboard(token, filtros);
+    }
+
+    function renderizarDashboard(datos) {
+        const estado = document.getElementById("dashboardEstado");
+        const contenido = document.getElementById("dashboardContenido");
+        const fecha = document.getElementById("dashboardFecha");
+        const descripcion = document.getElementById("dashboardPeriodoDescripcion");
+
+        if (estado) estado.style.display = "none";
+        if (contenido) contenido.style.display = "block";
+
+        if (fecha) {
+            fecha.textContent = `Información correspondiente al ${datos.fecha}`;
+        }
+
+        const descripciones = {
+            DIA: "Comportamiento de los últimos 7 días",
+            SEMANA: "Comportamiento de las últimas 8 semanas",
+            MES: "Comportamiento de los últimos 6 meses",
+            PERSONALIZADO: datos.fechaInicioPeriodo && datos.fechaFinPeriodo
+                ? `Desde ${datos.fechaInicioPeriodo} hasta ${datos.fechaFinPeriodo}`
+                : "Período personalizado"
+        };
+
+        if (descripcion) {
+            descripcion.textContent =
+                descripciones[datos.periodoSeleccionado] || descripciones.DIA;
+        }
+
+        document.getElementById("dashboardAsistenciasHoy").textContent = datos.asistenciasHoy || 0;
+        document.getElementById("dashboardAlumnos").textContent = datos.alumnosRegistrados || 0;
+        document.getElementById("dashboardPersonal").textContent = datos.personalActivo || 0;
+        document.getElementById("dashboardEntradas").textContent = datos.entradasPersonalHoy || 0;
+        document.getElementById("dashboardSalidas").textContent = datos.salidasPersonalHoy || 0;
+
+        renderizarGraficoDias(datos.graficoPeriodo || []);
+
+        renderizarBarras(
+            "dashboardGraficoCarreras",
+            datos.asistenciasPorCarrera || [],
+            "carrera",
+            "cantidad"
+        );
+
+        renderizarBarras(
+            "dashboardGraficoMetodo",
+            datos.asistenciasPorMetodo || [],
+            "metodo",
+            "cantidad"
+        );
+
+        renderizarBarras(
+            "dashboardGraficoTipo",
+            datos.asistenciasPorTipoPersona || [],
+            "tipoPersona",
+            "cantidad"
+        );
+
+        renderizarUltimosRegistros(datos.ultimosRegistros || []);
+    }
+
+    function renderizarGraficoDias(datos) {
+        const contenedor = document.getElementById("dashboardGraficoDias");
+
+        if (!contenedor) return;
+
+        datos = Array.isArray(datos) ? datos : [];
+
+        if (!datos.length) {
+            contenedor.innerHTML = `
+      <div class="dashboard-chart-empty">
+        <span>Sin registros</span>
+      </div>
+    `;
+            return;
+        }
+
+        const maximo = Math.max(
+            ...datos.map(item => Number(item.cantidad) || 0),
+            1
+        );
+
+        contenedor.innerHTML = datos.map(item => {
+            const cantidad = Number(item.cantidad) || 0;
+            const porcentaje = cantidad
+                ? Math.max((cantidad / maximo) * 100, 4)
+                : 0;
+
+            const etiqueta = String(item.etiqueta || item.fecha || "");
+
+            return `
+      <div class="dashboard-day">
+        <div class="dashboard-day-value">${cantidad}</div>
+        <div class="dashboard-day-bar">
+          <div class="dashboard-day-fill ${cantidad === 0 ? "sin-datos" : ""}" style="height:${porcentaje}%"></div>
+        </div>
+        <div class="dashboard-day-label">${escaparHTML(etiqueta)}</div>
+      </div>
+    `;
+        }).join("");
+    }
+
+    function renderizarBarras(id, datos, propiedadTexto, propiedadCantidad) {
+        const contenedor = document.getElementById(id);
+
+        if (!contenedor) return;
+
+        if (!datos.length) {
+            contenedor.innerHTML = `
+      <div class="dashboard-vacio">
+        <span class="material-symbols-outlined">bar_chart</span>
+        No hay datos disponibles.
+      </div>
+    `;
+            return;
+        }
+
+        const maximo = Math.max(
+            ...datos.map(item => Number(item[propiedadCantidad]) || 0),
+            1
+        );
+
+        contenedor.innerHTML = datos.map(item => {
+            const texto = String(item[propiedadTexto] || "SIN DATO");
+            const cantidad = Number(item[propiedadCantidad]) || 0;
+            const porcentaje = Math.max((cantidad / maximo) * 100, cantidad ? 3 : 0);
+
+            return `
+      <div class="dashboard-bar-item">
+        <div class="dashboard-bar-info">
+          <span>${escaparHTML(texto)}</span>
+          <strong>${cantidad}</strong>
+        </div>
+        <div class="dashboard-bar-track">
+          <div class="dashboard-bar-fill" style="width:${porcentaje}%"></div>
+        </div>
+      </div>
+    `;
+        }).join("");
+    }
+
+    function renderizarUltimosRegistros(registros) {
+        const cuerpo = document.getElementById("dashboardUltimosRegistros");
+
+        if (!cuerpo) return;
+
+        if (!registros.length) {
+            cuerpo.innerHTML = `
+      <tr>
+        <td colspan="7" class="dashboard-table-empty">
+          No existen registros recientes.
+        </td>
+      </tr>
+    `;
+            return;
+        }
+
+        cuerpo.innerHTML = registros.map(registro => {
+            const tipo = registro.tipoPersona || "-";
+            const tipoRegistro = registro.tipoRegistro || "-";
+            const metodo = registro.metodo || "-";
+
+            return `
+      <tr>
+        <td>${escaparHTML(registro.dni || "-")}</td>
+        <td>${escaparHTML(registro.hora || "-")}</td>
+        <td>
+          <span class="dashboard-tag">${escaparHTML(tipo)}</span>
+        </td>
+        <td>
+          <span class="dashboard-registro ${tipoRegistro === "SALIDA" ? "salida" : "entrada"}">
+            ${escaparHTML(tipoRegistro)}
+          </span>
+        </td>
+        <td>${escaparHTML(metodo)}</td>
+        <td>${escaparHTML(registro.carrera || "-")}</td>
+        <td>${escaparHTML(registro.ciclo || "-")}</td>
+      </tr>
+    `;
+        }).join("");
+    }
+
+    function mostrarErrorDashboard(mensaje) {
+        const estado = document.getElementById("dashboardEstado");
+        const contenido = document.getElementById("dashboardContenido");
+
+        if (contenido) contenido.style.display = "none";
+
+        if (estado) {
+            estado.style.display = "flex";
+            estado.innerHTML = `
+      <span class="material-symbols-outlined">error</span>
+      ${escaparHTML(mensaje)}
+    `;
+        }
+    }
+
+    configurarOpcionMenu(menuInicio, mostrarDashboard);
+</script>

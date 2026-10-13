@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base target="_top">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined">
+  <meta charset="UTF-8">
+  <title>Administración - Sistema de Asistencia</title>
+  <?!= include('css'); ?>
+</head>
+
+<body>
+  <div class="contenedorAdmin">
+    <aside class="menuAdmin">
+      <div class="cabeceraAdmin">
+        <span class="material-symbols-outlined">admin_panel_settings</span>
+        <h2>Administración</h2>
+      </div>
+
+      <nav>
+        <a href="#" id="menuInicio"><span class="material-symbols-outlined">home</span>Inicio</a>
+        <a href="#" id="menuAlumnos"><span class="material-symbols-outlined">school</span>Alumnos</a>
+        <a href="#" id="menuPersonal"><span class="material-symbols-outlined">badge</span>Personal</a>
+        <a href="#" id="menuReportes"><span class="material-symbols-outlined">assessment</span>Reportes</a>
+        <a href="#" id="menuUsuarios"><span class="material-symbols-outlined">manage_accounts</span>Usuarios</a>
+        <a href="#" id="menuConfiguracion"><span class="material-symbols-outlined">settings</span>Configuración</a>
+      </nav>
+
+      <div class="zonaCerrarSesion">
+        <button type="button" id="btnCerrarSesion">
+          <span class="material-symbols-outlined">logout</span>Cerrar sesión
+        </button>
+      </div>
+    </aside>
+
+    <main class="contenidoAdmin">
+      <header class="cabeceraContenido">
+        <div>
+          <h1>Panel de Administración</h1>
+          <p id="usuarioAdministrador">Cargando sesión...</p>
+        </div>
+      </header>
+
+      <section id="contenidoPrincipal">
+        <h2>Inicio</h2>
+        <p>Seleccione una opción del menú para comenzar.</p>
+      </section>
+    </main>
+  </div>
+
+    <?!= include('admin-java'); ?>
+    <?!= include('admin-alumnos'); ?>
+    <?!= include('admin-formularios'); ?>
+    <?!= include('admin-personal'); ?>
+    <?!= include('admin-usuarios'); ?>
+    <?!= include('admin-dashboard'); ?>
+    <?!= include('admin-reportes'); ?>
+    <?!= include('admin-config'); ?>
+</body>
+
+</html>

@@ -1,0 +1,615 @@
+<script>
+    function mostrarAlumnos() {
+        contenidoPrincipal.innerHTML = `
+    <div class="encabezadoModulo">
+      <div>
+        <h2>Alumnos</h2>
+        <p>Gestión de alumnos registrados.</p>
+      </div>
+      <div>
+        <button type="button" id="btnNuevoAlumno">
+          <span class="material-symbols-outlined">person_add</span>
+          Nuevo alumno
+        </button>
+        <button type="button" id="btnImportarAlumnos">
+          <span class="material-symbols-outlined">upload_file</span>
+          Importar alumnos
+        </button>
+        <button type="button" id="btnAprobacionesPendientes">
+          <span class="material-symbols-outlined">fact_check</span>
+          Aprobaciones pendientes
+          <span id="badgeAprobaciones" style="display:none;background:#c0392b;color:#fff;border-radius:999px;padding:1px 8px;font-size:12px;margin-left:6px;">0</span>
+        </button>
+        <button type="button" id="btnEliminarAlumno" disabled>
+          <span class="material-symbols-outlined">person_remove</span>
+          Eliminar alumno
+        </button>
+      </div>
+    </div>
+
+    <div id="mensajeAlumnos" class="mensajeModulo"></div>
+
+    <input type="file" id="archivoImportarAlumnos" accept=".xlsx,.xls" style="display:none;">
+
+    <div class="buscadorAlumnos">
+      <input type="text" id="buscarAlumno" placeholder="Buscar por DNI, nombre o apellido..." autocomplete="off">
+      <button type="button" id="btnBuscarAlumno">
+        <span class="material-symbols-outlined">search</span>
+        Buscar
+      </button>
+    </div>
+
+    <div class="tablaAlumnos">
+      <table>
+        <thead>
+          <tr>
+            <th>DNI</th>
+            <th>Nombre</th>
+            <th>Apellidos</th>
+            <th>Carrera</th>
+            <th>Ciclo</th>
+            <th>Turno</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tablaAlumnosBody">
+          <tr>
+            <td colspan="7">Cargando alumnos...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+
+        const tabla = document.getElementById("tablaAlumnosBody");
+        const btnEliminar = document.getElementById("btnEliminarAlumno");
+        const buscarAlumno = document.getElementById("buscarAlumno");
+        const btnBuscar = document.getElementById("btnBuscarAlumno");
+        const btnAprobaciones = document.getElementById("btnAprobacionesPendientes");
+        const btnImportar = document.getElementById("btnImportarAlumnos");
+        const archivoImportar = document.getElementById("archivoImportarAlumnos");
+
+        let alumnoSeleccionado = null;
+
+        google.script.run
+            .withSuccessHandler(respuesta => {
+                if (manejarRespuestaAutorizacion(respuesta)) return;
+
+                const alumnos = Array.isArray(respuesta)
+                    ? respuesta
+                    : respuesta && Array.isArray(respuesta.alumnos)
+                        ? respuesta.alumnos
+                        : null;
+
+                if (!alumnos) {
+                    tabla.innerHTML = "<tr><td colspan='7'>No se pudieron cargar los alumnos.</td></tr>";
+                    return;
+                }
+
+                if (!alumnos.length) {
+                    tabla.innerHTML = "<tr><td colspan='7'>No hay alumnos registrados.</td></tr>";
+                    return;
+                }
+
+                tabla.innerHTML = "";
+
+                alumnos.forEach(alumno => {
+                    const fila = document.createElement("tr");
+
+                    fila.innerHTML = `
+          <td>${escaparHTML(alumno.dni)}</td>
+          <td>${escaparHTML(alumno.nombre)}</td>
+          <td>${escaparHTML(alumno.apellidos)}</td>
+          <td>${escaparHTML(alumno.carrera)}</td>
+          <td>${escaparHTML(alumno.ciclo)}</td>
+          <td>${escaparHTML(alumno.turno || "-")}</td>
+          <td style="white-space:nowrap;">
+            <button type="button" class="btnAccionAlumno" title="Editar alumno">
+              <span class="material-symbols-outlined">edit</span>
+            </button>
+            <button type="button" class="btnAccionAlumno" title="Ver faltas" data-verfaltas="${escaparHTML(alumno.dni)}">
+              <span class="material-symbols-outlined">fact_check</span>
+            </button>
+          </td>
+        `;
+
+                    fila.addEventListener("click", () => {
+                        tabla.querySelectorAll("tr").forEach(item => {
+                            item.classList.remove("filaAlumnoSeleccionada");
+                        });
+
+                        fila.classList.add("filaAlumnoSeleccionada");
+                        alumnoSeleccionado = alumno;
+                        btnEliminar.disabled = false;
+                    });
+
+                    fila.querySelectorAll(".btnAccionAlumno")[0].addEventListener("click", e => {
+                        e.stopPropagation();
+                        mostrarFormularioEditarAlumno(alumno);
+                    });
+
+                    fila.querySelector("[data-verfaltas]").addEventListener("click", e => {
+                        e.stopPropagation();
+                        mostrarReportes();
+                        document.getElementById("filtroDniReporte").value = alumno.dni;
+                        document.getElementById("filtroEstadoReporte").value = "FALTO";
+                        cargarReporte();
+                    });
+
+                    tabla.appendChild(fila);
+                });
+            })
+            .withFailureHandler(error => {
+                console.error(error);
+                tabla.innerHTML = "<tr><td colspan='7'>Error al cargar los alumnos.</td></tr>";
+            })
+            .obtenerAlumnos(obtenerToken());
+
+        document.getElementById("btnNuevoAlumno")
+            .addEventListener("click", mostrarFormularioNuevoAlumno);
+
+        btnImportar.addEventListener("click", mostrarDialogImportarAlumnos);
+
+        archivoImportar.addEventListener("change", async () => {
+            const archivo = archivoImportar.files[0];
+            if (!archivo) return;
+
+            try {
+                await cargarLectorExcel();
+
+                const datos = await archivo.arrayBuffer();
+                const libro = XLSX.read(datos, { type: "array" });
+                const hoja = libro.Sheets[libro.SheetNames[0]];
+
+                const filas = XLSX.utils.sheet_to_json(hoja, {
+                    header: 1,
+                    defval: ""
+                });
+
+                if (filas.length < 2) {
+                    alert("El Excel no contiene registros para importar.");
+                    archivoImportar.value = "";
+                    return;
+                }
+
+                const encabezados = filas[0] || [];
+                const resultadoColumnas = detectarColumnasImportacion(encabezados);
+
+                if (resultadoColumnas.conflictos.length) {
+                    alert(
+                        "El Excel contiene columnas duplicadas para un mismo dato."
+                    );
+                    archivoImportar.value = "";
+                    return;
+                }
+
+                if (resultadoColumnas.faltantes.length) {
+                    alert(
+                        "No se pudieron identificar todas las columnas necesarias.\n\n" +
+                        "Faltan:\n" +
+                        resultadoColumnas.faltantes.join("\n") +
+                        "\n\nColumnas requeridas:\n" +
+                        "DNI | NOMBRES | APELLIDOS | CARRERA | CICLO"
+                    );
+                    archivoImportar.value = "";
+                    return;
+                }
+
+                google.script.run
+                    .withSuccessHandler(respuesta => {
+                        if (manejarRespuestaAutorizacion(respuesta)) return;
+
+                        const alumnos = Array.isArray(respuesta)
+                            ? respuesta
+                            : respuesta && Array.isArray(respuesta.alumnos)
+                                ? respuesta.alumnos
+                                : [];
+
+                        const registros = prepararRegistrosImportacion(
+                            filas,
+                            resultadoColumnas.columnas,
+                            alumnos
+                        );
+
+                        importacionAlumnosPendiente = {
+                            archivo: archivo.name,
+                            registros
+                        };
+
+                        console.log("Importación preparada:", importacionAlumnosPendiente);
+
+                        mostrarVistaPreviaImportacion();
+                    })
+                    .withFailureHandler(error => {
+                        console.error(error);
+                        alert("No se pudieron consultar los alumnos existentes.");
+                    })
+                    .obtenerAlumnos(obtenerToken());
+
+            } catch (error) {
+                console.error(error);
+                alert("No se pudo preparar el archivo Excel.");
+            }
+
+            archivoImportar.value = "";
+        });
+
+        btnAprobaciones.addEventListener(
+            "click",
+            mostrarAprobacionesPendientes
+        );
+
+        btnEliminar.addEventListener("click", () => {
+            if (alumnoSeleccionado) mostrarFormularioEliminarAlumno(alumnoSeleccionado);
+        });
+
+        configurarBusqueda(buscarAlumno, btnBuscar, tabla);
+    }
+
+    function actualizarBadgeAprobaciones() {
+        const badge = document.getElementById("badgeAprobaciones");
+        if (!badge) return;
+        google.script.run
+            .withSuccessHandler(r => {
+                const n = r && r.estado === "OK" ? (r.solicitudes || []).length : 0;
+                badge.style.display = n > 0 ? "inline-block" : "none";
+                badge.textContent = n;
+                const btn = document.getElementById("btnAprobacionesPendientes");
+                if (btn) btn.style.borderColor = n > 0 ? "#c0392b" : "";
+            })
+            .obtenerSolicitudesPendientes(obtenerToken());
+    }
+
+    function mostrarAprobacionesPendientes() {
+        const token = obtenerToken();
+
+        if (!token) {
+            cerrarSesionLocal();
+            return;
+        }
+
+        google.script.run
+            .withSuccessHandler(respuesta => {
+                if (manejarRespuestaAutorizacion(respuesta)) return;
+
+                if (!respuesta || respuesta.estado !== "OK") {
+                    mostrarNotificacion(
+                        respuesta && respuesta.mensaje || "No se pudieron consultar las solicitudes.",
+                        "error"
+                    );
+                    return;
+                }
+
+                const solicitudes = Array.isArray(respuesta.solicitudes)
+                    ? respuesta.solicitudes
+                    : [];
+
+                const modalAnterior = document.getElementById("modalAprobacionesPendientes");
+
+                if (modalAnterior) modalAnterior.remove();
+
+                const modal = document.createElement("div");
+                modal.id = "modalAprobacionesPendientes";
+
+                modal.innerHTML = `
+        <div class="modalAprobacionesContenido">
+          <div class="modalAprobacionesCabecera">
+            <div>
+              <h2>Aprobaciones pendientes</h2>
+              <p>Revisa las solicitudes de registro de alumnos.</p>
+            </div>
+
+            <button type="button" id="btnCerrarAprobaciones" class="btnCerrarModalAlumno">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+
+          <div class="modalAprobacionesResumen">
+            <span class="material-symbols-outlined">pending_actions</span>
+            <span>
+              Solicitudes pendientes:
+              <strong id="cantidadSolicitudesPendientes">${solicitudes.length}</strong>
+            </span>
+          </div>
+
+          <div class="listaSolicitudesPendientes" id="listaSolicitudesPendientes">
+            ${solicitudes.length
+                        ? solicitudes.map(solicitud => `
+                  <div class="solicitudPendiente" data-id="${escaparHTML(solicitud.idSolicitud)}">
+                    <div class="solicitudPendienteDatos">
+                      <div class="solicitudPendienteCabecera">
+                        <strong>${escaparHTML(solicitud.idSolicitud)}</strong>
+                        <span>${escaparHTML(solicitud.fechaSolicitud)}</span>
+                      </div>
+
+                      <div class="solicitudPendienteAlumno">
+                        <strong>${escaparHTML(solicitud.nombre)} ${escaparHTML(solicitud.apellidos)}</strong>
+                        <span>DNI: ${escaparHTML(solicitud.dni)}</span>
+                      </div>
+
+                      <div class="solicitudPendienteDetalles">
+                        <span>${escaparHTML(solicitud.carrera)}</span>
+                        <span>Ciclo ${escaparHTML(solicitud.ciclo)}</span>
+                      </div>
+                    </div>
+
+                    <div class="solicitudPendienteAcciones">
+                      <button
+                        type="button"
+                        class="btnAprobarSolicitud"
+                        data-id="${escaparHTML(solicitud.idSolicitud)}"
+                        title="Aprobar solicitud">
+                        <span class="material-symbols-outlined">check</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        class="btnRechazarSolicitud"
+                        data-id="${escaparHTML(solicitud.idSolicitud)}"
+                        title="Rechazar solicitud">
+                        <span class="material-symbols-outlined">close</span>
+                      </button>
+                    </div>
+                  </div>
+                `).join("")
+                        : `
+                  <div class="solicitudesPendientesVacio">
+                    <span class="material-symbols-outlined">task_alt</span>
+                    <strong>No hay solicitudes pendientes</strong>
+                    <span>Todas las solicitudes han sido procesadas.</span>
+                  </div>
+                `
+                    }
+          </div>
+        </div>
+      `;
+
+                document.body.appendChild(modal);
+
+                document.getElementById("btnCerrarAprobaciones")
+                    .addEventListener("click", () => modal.remove());
+
+                modal.querySelectorAll(".btnAprobarSolicitud").forEach(boton => {
+                    boton.addEventListener("click", () => aprobarSolicitudRegistro(boton.dataset.id));
+                });
+
+                modal.querySelectorAll(".btnRechazarSolicitud").forEach(boton => {
+                    boton.addEventListener("click", () => rechazarSolicitudRegistro(boton.dataset.id));
+                });
+            })
+            .withFailureHandler(error => {
+                console.error(error);
+
+                mostrarNotificacion(
+                    "Ocurrió un error al consultar las aprobaciones pendientes.",
+                    "error"
+                );
+            })
+            .obtenerSolicitudesPendientes(token);
+    }
+
+    function aprobarSolicitudRegistro(idSolicitud) {
+        const token = obtenerToken();
+
+        if (!token) {
+            cerrarSesionLocal();
+            return;
+        }
+
+        const modal = document.createElement("div");
+        modal.className = "modalConfirmacionSolicitud";
+
+        modal.innerHTML = `
+    <div class="modalConfirmacionSolicitudContenido">
+      <div class="modalConfirmacionSolicitudIcono aprobar">
+        <span class="material-symbols-outlined">person_add</span>
+      </div>
+
+      <h3>Aprobar solicitud</h3>
+
+      <p>
+        ¿Deseas aprobar la solicitud
+        <strong>${escaparHTML(idSolicitud)}</strong>?
+      </p>
+
+      <span class="modalConfirmacionSolicitudInfo">
+        El alumno será registrado automáticamente en el sistema.
+      </span>
+
+      <div class="modalConfirmacionSolicitudAcciones">
+        <button type="button" class="btnCancelarConfirmacion">
+          Cancelar
+        </button>
+
+        <button type="button" class="btnConfirmarAprobacion">
+          <span class="material-symbols-outlined">check</span>
+          Aprobar solicitud
+        </button>
+      </div>
+    </div>
+  `;
+
+        document.body.appendChild(modal);
+
+        modal.querySelector(".btnCancelarConfirmacion")
+            .addEventListener("click", () => modal.remove());
+
+        modal.querySelector(".btnConfirmarAprobacion")
+            .addEventListener("click", () => {
+                modal.remove();
+
+                google.script.run
+                    .withSuccessHandler(respuesta => {
+                        if (manejarRespuestaAutorizacion(respuesta)) return;
+
+                        if (!respuesta || !["APROBADO"].includes(respuesta.estado)) {
+                            mostrarNotificacion(
+                                respuesta && respuesta.mensaje || "No se pudo aprobar la solicitud.",
+                                "error"
+                            );
+                            return;
+                        }
+
+                        mostrarNotificacion(
+                            "Solicitud aprobada y alumno registrado correctamente.",
+                            "exito"
+                        );
+
+                        eliminarSolicitudDelModal(idSolicitud);
+                    })
+                    .withFailureHandler(error => {
+                        console.error(error);
+
+                        mostrarNotificacion(
+                            "Ocurrió un error al aprobar la solicitud.",
+                            "error"
+                        );
+                    })
+                    .resolverSolicitudRegistro(token, {
+                        idSolicitud: idSolicitud,
+                        accion: "APROBAR",
+                        observacion: ""
+                    });
+            });
+    }
+
+    function rechazarSolicitudRegistro(idSolicitud) {
+        const token = obtenerToken();
+
+        if (!token) {
+            cerrarSesionLocal();
+            return;
+        }
+
+        const modal = document.createElement("div");
+        modal.className = "modalConfirmacionSolicitud";
+
+        modal.innerHTML = `
+    <div class="modalConfirmacionSolicitudContenido modalRechazoSolicitud">
+      <div class="modalConfirmacionSolicitudIcono rechazar">
+        <span class="material-symbols-outlined">person_remove</span>
+      </div>
+
+      <h3>Rechazar solicitud</h3>
+
+      <p>
+        Indica el motivo del rechazo de la solicitud
+        <strong>${escaparHTML(idSolicitud)}</strong>.
+      </p>
+
+      <label class="modalConfirmacionSolicitudLabel">
+        Motivo del rechazo
+      </label>
+
+      <textarea
+        class="campoMotivoRechazo"
+        rows="4"
+        maxlength="300"
+        placeholder="Escribe el motivo del rechazo..."
+      ></textarea>
+
+      <div class="modalConfirmacionSolicitudAcciones">
+        <button type="button" class="btnCancelarConfirmacion">
+          Cancelar
+        </button>
+
+        <button type="button" class="btnConfirmarRechazo">
+          <span class="material-symbols-outlined">close</span>
+          Rechazar solicitud
+        </button>
+      </div>
+    </div>
+  `;
+
+        document.body.appendChild(modal);
+
+        const campoMotivo = modal.querySelector(".campoMotivoRechazo");
+
+        campoMotivo.focus();
+
+        modal.querySelector(".btnCancelarConfirmacion")
+            .addEventListener("click", () => modal.remove());
+
+        modal.querySelector(".btnConfirmarRechazo")
+            .addEventListener("click", () => {
+                const observacion = campoMotivo.value.trim();
+
+                if (!observacion) {
+                    campoMotivo.focus();
+
+                    mostrarNotificacion(
+                        "Debe indicar el motivo del rechazo.",
+                        "error"
+                    );
+
+                    return;
+                }
+
+                modal.remove();
+
+                google.script.run
+                    .withSuccessHandler(respuesta => {
+                        if (manejarRespuestaAutorizacion(respuesta)) return;
+
+                        if (!respuesta || respuesta.estado !== "RECHAZADO") {
+                            mostrarNotificacion(
+                                respuesta && respuesta.mensaje || "No se pudo rechazar la solicitud.",
+                                "error"
+                            );
+                            return;
+                        }
+
+                        mostrarNotificacion(
+                            "Solicitud rechazada correctamente.",
+                            "exito"
+                        );
+
+                        eliminarSolicitudDelModal(idSolicitud);
+                    })
+                    .withFailureHandler(error => {
+                        console.error(error);
+
+                        mostrarNotificacion(
+                            "Ocurrió un error al rechazar la solicitud.",
+                            "error"
+                        );
+                    })
+                    .resolverSolicitudRegistro(token, {
+                        idSolicitud: idSolicitud,
+                        accion: "RECHAZAR",
+                        observacion: observacion
+                    });
+            });
+    }
+
+    function eliminarSolicitudDelModal(idSolicitud) {
+        const solicitud = document.querySelector(
+            `.solicitudPendiente[data-id="${idSolicitud}"]`
+        );
+
+        if (solicitud) solicitud.remove();
+
+        const contador = document.getElementById("cantidadSolicitudesPendientes");
+
+        if (contador) {
+            const cantidadActual = document.querySelectorAll(
+                ".solicitudPendiente"
+            ).length;
+
+            contador.textContent = cantidadActual;
+
+            if (cantidadActual === 0) {
+                document.getElementById("listaSolicitudesPendientes").innerHTML = `
+        <div class="solicitudesPendientesVacio">
+          <span class="material-symbols-outlined">task_alt</span>
+          <strong>No hay solicitudes pendientes</strong>
+          <span>Todas las solicitudes han sido procesadas.</span>
+        </div>
+      `;
+            }
+        }
+    }
+
+    configurarOpcionMenu(menuAlumnos, mostrarAlumnos);
+
+</script>

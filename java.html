@@ -1,0 +1,459 @@
+<script>
+    const hora = document.getElementById('hora');
+    const fecha = document.getElementById('fecha');
+    let desfaseServidor = 0;
+
+    google.script.run
+        .withSuccessHandler(r => {
+            if (r && r.estado === "OK" && r.epoch) desfaseServidor = r.epoch - Date.now();
+            actualizarReloj();
+        })
+        .withFailureHandler(() => actualizarReloj())
+        .obtenerHoraServidor();
+
+    function actualizarReloj() {
+        const ahora = new Date(Date.now() + desfaseServidor);
+        let horas = ahora.getHours();
+        const minutos = String(ahora.getMinutes()).padStart(2, '0');
+        const segundos = String(ahora.getSeconds()).padStart(2, '0');
+        const periodo = horas >= 12 ? 'PM' : 'AM';
+
+        if (horas > 12) horas -= 12;
+        else if (horas === 0) horas = 12;
+
+        hora.textContent = `${String(horas).padStart(2, '0')}:${minutos}:${segundos} ${periodo}`;
+
+        fecha.textContent = ahora.toLocaleDateString('es-PE', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    }
+
+    setInterval(actualizarReloj, 1000);
+
+    function anchoRealPantalla() {
+        let s = 9999;
+        try { s = (window.screen && window.screen.width) || 9999; } catch (e) {}
+        return Math.min(window.innerWidth, s);
+    }
+    function esPantallaMovil() {
+        let ow = 9999;
+        try { ow = window.outerWidth || 9999; } catch (e) {}
+        if (ow <= 820) return true;
+        return anchoRealPantalla() <= 768;
+    }
+    function aplicarVistaMovil() {
+        var movil = esPantallaMovil();
+        var cont = document.querySelector('.contenedor');
+        cont.classList.toggle('vista-movil', movil);
+        if (movil) {
+            var base = 17;
+            var sw = 390, sh = 700;
+            try {
+                sw = (window.screen && window.screen.width) || 390;
+                sh = (window.screen && window.screen.height) || 700;
+                base = Math.max(15, Math.min(28, Math.min(sw / 20, sh / 30)));
+            } catch (e) {}
+            var mc = document.querySelector('.marcarAsistencia');
+            if (mc) mc.style.fontSize = base + 'px';
+        }
+    }
+    window.addEventListener('resize', aplicarVistaMovil);
+    aplicarVistaMovil();
+
+    const inputDni = document.getElementById('dni');
+    const btnRegManual = document.getElementById('btnRegManual');
+    const btnAdministracion = document.getElementById('btnAdministracion');
+    const btnMenuMovil = document.getElementById('btnMenuMovil');
+    if (btnMenuMovil) btnMenuMovil.addEventListener('click', () => {
+        document.querySelector('.contenedor').classList.toggle('nav-abierto');
+    });
+    const modalLogin = document.getElementById('modalLogin');
+    const btnCancelarLogin = document.getElementById('btnCancelarLogin');
+    const usuarioLogin = document.getElementById('usuarioLogin');
+    const passwordLogin = document.getElementById('passwordLogin');
+    const btnIniciarSesion = document.getElementById('btnIniciarSesion');
+    const modalMensaje = document.getElementById('modalMensaje');
+    const txtNombreEstudiante = document.getElementById('nombre_estudiante');
+    const txtHoraRegistro = document.getElementById('hora_registro');
+    const txtMensajeEstado = document.getElementById('mensaje');
+    const btnCerrarMensaje = document.getElementById('btnCerrarMensaje');
+    const contenedorQR = document.getElementById('contenedorQr');
+    const qrFormulario = document.getElementById('qrFormulario');
+    const fotoPersonal = document.getElementById('fotoPersonal');
+    const iconoModal = document.querySelector('#modalMensaje .icono');
+
+    const urlFormulario = 'https://docs.google.com/forms/d/e/1FAIpQLSfEV_U5MlmtqGsohnLcvwJsuCwn4XZCKzJ_AzMIPUh1Pzm3Cw/viewform?usp=sharing&ouid=115005222016961270311y';
+
+    new QRCode(qrFormulario, {
+        text: urlFormulario,
+        width: 200,
+        height: 200,
+        correctLevel: QRCode.CorrectLevel.H
+    });
+
+    let temporizadorModal;
+    let procesandoRegistro = false;
+    let inicioEntradaDni = null;
+    let ultimaEntradaDni = null;
+    let padronLocal = { version: "0", alumnos: {} };
+    let recientesDni = new Map();
+    let colaMarcas = [];
+
+    function cargarPadronLocal() {
+        google.script.run
+            .withSuccessHandler(r => {
+                if (r && r.estado === "OK" && r.alumnos) {
+                    padronLocal = { version: String(r.version || "0"), alumnos: r.alumnos };
+                    try { localStorage.setItem("padronRapido", JSON.stringify(padronLocal)); } catch (e) { }
+                }
+            })
+            .obtenerPadronRapido();
+    }
+    function sincronizarPadron(versionServidor) {
+        if (versionServidor && String(versionServidor) !== String(padronLocal.version)) cargarPadronLocal();
+    }
+    try {
+        const g = JSON.parse(localStorage.getItem("padronRapido") || "null");
+        if (g && g.alumnos) padronLocal = g;
+    } catch (e) { }
+    cargarPadronLocal();
+
+    function cargarRecursosInstitucionales() {
+        google.script.run.withSuccessHandler(r => {
+            if (!r || r.estado !== "OK") return;
+
+            if (r.logoInstitucional) {
+                const h = document.getElementById("logoInstitucionalHeader");
+                if (h) h.src = r.logoInstitucional;
+                document.getElementById("logoInstitucionalNav").src = r.logoInstitucional;
+            }
+            const imgFondo = document.getElementById("imagenFondoAsistencia");
+            if (r.imagenFondoAsistencia) {
+                imgFondo.src = r.imagenFondoAsistencia;
+            }
+            imgFondo.onerror = () => {
+                imgFondo.src = "https://www.santalucia.edu.pe/admin/_uploads/imagenes/30122025112505-matricula-2026-i.png";
+            };
+        }).obtenerRecursosPublicos();
+    }
+
+    cargarRecursosInstitucionales();
+
+    function configurarIconoModal(icono, color) {
+        iconoModal.innerText = icono;
+        iconoModal.style.color = color;
+    }
+
+    function ocultarFotoPersonal() {
+        fotoPersonal.src = '';
+        fotoPersonal.style.display = 'none';
+    }
+
+    function mostrarFotoPersonal(foto) {
+        if (foto) {
+            fotoPersonal.src = foto;
+            fotoPersonal.style.display = 'block';
+        } else {
+            ocultarFotoPersonal();
+        }
+    }
+
+    function registrarAsistencia(dni, metodo = null) {
+        dni = String(dni).trim();
+        if (!dni) { inputDni.focus(); return; }
+
+        const ahoraMs = Date.now();
+        const ultimo = recientesDni.get(dni) || 0;
+        if (ahoraMs - ultimo < 10000) {
+            configurarIconoModal('warning', 'orange');
+            contenedorQR.style.display = 'none';
+            txtNombreEstudiante.innerText = 'Ya procesándose';
+            txtMensajeEstado.innerText = 'ESE DNI SE ESCANEÓ HACE SEGUNDOS';
+            txtMensajeEstado.style.color = 'orange';
+            txtHoraRegistro.innerText = '';
+            if (!modalMensaje.open) modalMensaje.showModal();
+            cerrarModalAutomaticamente(3);
+            inputDni.value = '';
+            inputDni.focus();
+            return;
+        }
+
+        const conocido = padronLocal.alumnos[dni];
+        configurarIconoModal('hourglass_top', '#0c436b');
+        ocultarFotoPersonal();
+        contenedorQR.style.display = 'none';
+        txtNombreEstudiante.innerText = conocido ? conocido.nombre : 'Verificando...';
+        txtMensajeEstado.innerText = 'REGISTRANDO ASISTENCIA...';
+        txtMensajeEstado.style.color = '#0c436b';
+        txtHoraRegistro.innerText = '';
+        if (!modalMensaje.open) modalMensaje.showModal();
+        inputDni.value = '';
+        inputDni.focus();
+
+        recientesDni.set(dni, ahoraMs);
+        colaMarcas.push({ dni: dni, metodo: metodo });
+        bombearCola();
+    }
+
+    function bombearCola() {
+        if (procesandoRegistro || !colaMarcas.length) return;
+        const item = colaMarcas.shift();
+        procesandoRegistro = true;
+        ocultarFotoPersonal();
+
+        google.script.run
+            .withSuccessHandler(function (resultado) {
+                procesandoRegistro = false;
+                if (resultado && resultado.versionPadron) sincronizarPadron(resultado.versionPadron);
+
+                if (resultado.estado === "REGISTRADO") {
+                    configurarIconoModal('check_circle', '#28a745');
+                    contenedorQR.style.display = 'none';
+                    txtNombreEstudiante.innerText = `${resultado.estudiante.nombre} ${resultado.estudiante.apellidos}`;
+                    txtMensajeEstado.innerText = 'REGISTRO EXITOSO';
+                    txtMensajeEstado.style.color = 'green';
+                    txtHoraRegistro.innerText = `Fecha: ${resultado.fecha} | Hora: ${resultado.hora}`;
+                    if (!modalMensaje.open) modalMensaje.showModal();
+                    cerrarModalAutomaticamente(4);
+                }
+                else if (resultado.estado === "DUPLICADO") {
+                    configurarIconoModal('warning', 'orange');
+                    contenedorQR.style.display = 'none';
+                    txtNombreEstudiante.innerText = `${resultado.estudiante.nombre} ${resultado.estudiante.apellidos}`;
+                    txtMensajeEstado.innerText = 'YA REGISTRÓ SU ASISTENCIA HOY';
+                    txtMensajeEstado.style.color = 'orange';
+                    txtHoraRegistro.innerText = `Hora de registro: ${resultado.horaAnterior}`;
+                    if (!modalMensaje.open) modalMensaje.showModal();
+                    cerrarModalAutomaticamente(6);
+                }
+                else if (resultado.estado === "PERSONAL_ENTRADA_REGISTRADA") {
+                    configurarIconoModal('login', '#28a745');
+                    contenedorQR.style.display = 'none';
+                    txtNombreEstudiante.innerText = `${resultado.personal.nombre} ${resultado.personal.apellidos}`;
+                    txtMensajeEstado.innerText = 'ENTRADA REGISTRADA';
+                    txtMensajeEstado.style.color = 'green';
+                    txtHoraRegistro.innerText = `Fecha: ${resultado.fecha} | Hora: ${resultado.hora}`;
+                    mostrarFotoPersonal(resultado.foto);
+                    if (!modalMensaje.open) modalMensaje.showModal();
+                    cerrarModalAutomaticamente(5);
+                }
+                else if (resultado.estado === "PERSONAL_SALIDA_REGISTRADA") {
+                    configurarIconoModal('logout', '#0c436b');
+                    contenedorQR.style.display = 'none';
+                    txtNombreEstudiante.innerText = `${resultado.personal.nombre} ${resultado.personal.apellidos}`;
+                    txtMensajeEstado.innerText = 'SALIDA REGISTRADA';
+                    txtMensajeEstado.style.color = '#0c436b';
+                    txtHoraRegistro.innerText = `Fecha: ${resultado.fecha} | Hora: ${resultado.hora}`;
+                    mostrarFotoPersonal(resultado.foto);
+                    if (!modalMensaje.open) modalMensaje.showModal();
+                    cerrarModalAutomaticamente(5);
+                }
+                else if (resultado.estado === "PERSONAL_INACTIVO") {
+                    configurarIconoModal('person_off', 'red');
+                    contenedorQR.style.display = 'none';
+                    txtNombreEstudiante.innerText = `${resultado.personal.nombre} ${resultado.personal.apellidos}`;
+                    txtMensajeEstado.innerText = 'PERSONAL INACTIVO';
+                    txtMensajeEstado.style.color = 'red';
+                    txtHoraRegistro.innerText = 'No puede registrar asistencia porque su estado está inactivo.';
+                    ocultarFotoPersonal();
+                    if (!modalMensaje.open) modalMensaje.showModal();
+                    cerrarModalAutomaticamente(5);
+                }
+                else if (resultado.estado === "PERSONAL_TIEMPO_MINIMO") {
+                    configurarIconoModal('schedule', 'orange');
+                    contenedorQR.style.display = 'none';
+                    txtNombreEstudiante.innerText = `${resultado.personal.nombre} ${resultado.personal.apellidos}`;
+                    txtMensajeEstado.innerText = 'SALIDA NO DISPONIBLE';
+                    txtMensajeEstado.style.color = 'orange';
+                    txtHoraRegistro.innerText = `Debe esperar ${resultado.minutosRestantes} minuto(s) más para registrar su salida.`;
+                    if (!modalMensaje.open) modalMensaje.showModal();
+                    cerrarModalAutomaticamente(5);
+                }
+                else if (resultado.estado === "PERSONAL_COMPLETO") {
+                    configurarIconoModal('check_circle', '#0c436b');
+                    ocultarFotoPersonal();
+                    txtNombreEstudiante.innerText = `${resultado.personal.nombre} ${resultado.personal.apellidos}`;
+                    txtMensajeEstado.innerText = 'ASISTENCIA COMPLETA DE HOY';
+                    txtMensajeEstado.style.color = '#0c436b';
+                    txtHoraRegistro.innerText = 'Ya registró su entrada y salida de hoy.';
+                    contenedorQR.style.display = 'none';
+                    if (!modalMensaje.open) modalMensaje.showModal();
+                    cerrarModalAutomaticamente(5);
+                }
+                else if (resultado.estado === "NO_ENCONTRADO") {
+                    configurarIconoModal('person_off', 'red');
+                    ocultarFotoPersonal();
+                    txtNombreEstudiante.innerText = 'Usuario no registrado';
+                    txtMensajeEstado.innerText = 'Por favor, registrese para poder registrar su asistencia';
+                    txtMensajeEstado.style.color = 'red';
+                    txtHoraRegistro.innerText = '';
+                    contenedorQR.style.display = 'block';
+                    if (!modalMensaje.open) modalMensaje.showModal();
+                    cerrarModalAutomaticamente(10);
+                }
+                else {
+                    configurarIconoModal('error', 'red');
+                    ocultarFotoPersonal();
+                    txtNombreEstudiante.innerText = 'Error del sistema';
+                    txtMensajeEstado.innerText = resultado.mensaje || 'No se pudo procesar la asistencia';
+                    txtMensajeEstado.style.color = 'red';
+                    txtHoraRegistro.innerText = '';
+                    if (!modalMensaje.open) modalMensaje.showModal();
+                    cerrarModalAutomaticamente(5);
+                }
+                bombearCola();
+            })
+            .withFailureHandler(function (error) {
+                procesandoRegistro = false;
+                recientesDni.delete(item.dni);
+                bombearCola();
+                console.error(error);
+                ocultarFotoPersonal();
+                configurarIconoModal('error', 'red');
+                txtNombreEstudiante.innerText = 'Error del sistema';
+                txtMensajeEstado.innerText = 'No se pudo procesar la asistencia';
+                txtMensajeEstado.style.color = 'red';
+                txtHoraRegistro.innerText = '';
+                if (!modalMensaje.open) modalMensaje.showModal();
+                cerrarModalAutomaticamente(5);
+            })
+            .registrarAsistencia(item.dni, item.metodo);
+    }
+
+    inputDni.addEventListener('keydown', e => {
+        if (inicioEntradaDni === null && e.key !== 'Enter') {
+            inicioEntradaDni = performance.now();
+        }
+
+        if (e.key === 'Enter') {
+            e.preventDefault();
+
+            if (inicioEntradaDni === null) {
+                inicioEntradaDni = performance.now();
+            }
+
+            ultimaEntradaDni = performance.now();
+
+            const duracionEntrada = ultimaEntradaDni - inicioEntradaDni;
+            const metodo = duracionEntrada <= 200 ? 'SCANNER' : 'MANUAL';
+
+            registrarAsistencia(inputDni.value, metodo);
+
+            inicioEntradaDni = null;
+            ultimaEntradaDni = null;
+        }
+    });
+
+    btnRegManual.addEventListener('click', () => {
+        inicioEntradaDni = null;
+        ultimaEntradaDni = null;
+        registrarAsistencia(inputDni.value, 'MANUAL');
+    });
+
+    inputDni.focus();
+
+    document.addEventListener('pointerdown', () => {
+        if (document.activeElement !== inputDni && !modalMensaje.open && !modalLogin.open) inputDni.focus();
+    });
+
+    btnCerrarMensaje.addEventListener('click', () => {
+        if (modalMensaje.open) modalMensaje.close();
+        inputDni.value = '';
+        inputDni.focus();
+    });
+
+    function cerrarModalAutomaticamente(segundos) {
+        clearTimeout(temporizadorModal);
+
+        temporizadorModal = setTimeout(() => {
+            if (modalMensaje.open) modalMensaje.close();
+            inputDni.value = '';
+            inputDni.focus();
+        }, segundos * 1000);
+    }
+
+    btnAdministracion.addEventListener('click', e => {
+        e.preventDefault();
+        document.querySelector('.contenedor').classList.remove('nav-abierto');
+        usuarioLogin.value = '';
+        passwordLogin.value = '';
+        modalLogin.showModal();
+        usuarioLogin.focus();
+    });
+
+    btnCancelarLogin.addEventListener('click', () => {
+        if (modalLogin.open) modalLogin.close();
+        usuarioLogin.value = '';
+        passwordLogin.value = '';
+    });
+
+    function iniciarSesion() {
+        const usuario = usuarioLogin.value.trim();
+        const password = passwordLogin.value;
+
+        if (!usuario) {
+            usuarioLogin.focus();
+            return;
+        }
+
+        if (!password) {
+            passwordLogin.focus();
+            return;
+        }
+
+        btnIniciarSesion.disabled = true;
+
+        google.script.run
+            .withSuccessHandler(function (resultado) {
+                btnIniciarSesion.disabled = false;
+
+                if (resultado.estado === "VALIDO") {
+                    sessionStorage.setItem("sesionToken", resultado.token);
+                    sessionStorage.setItem("usuarioSesion", resultado.usuario);
+                    sessionStorage.setItem("rolSesion", resultado.rol);
+
+                    modalLogin.close();
+
+                    google.script.run
+                        .withSuccessHandler(function (url) {
+                            window.top.location.href = url + "?pagina=admin";
+                        })
+                        .withFailureHandler(function (error) {
+                            console.error(error);
+                        })
+                        .obtenerUrlAplicacion();
+                }
+                else if (resultado.estado === "USUARIO_INACTIVO") {
+                    alert(resultado.mensaje);
+                }
+                else {
+                    alert(resultado.mensaje || "Usuario o contraseña incorrectos.");
+                }
+            })
+            .withFailureHandler(function (error) {
+                btnIniciarSesion.disabled = false;
+                console.error(error);
+                alert("No se pudo procesar el inicio de sesión.");
+            })
+            .validarLogin(usuario, password);
+    }
+
+    btnIniciarSesion.addEventListener('click', iniciarSesion);
+
+    usuarioLogin.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            iniciarSesion();
+        }
+    });
+
+    passwordLogin.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            iniciarSesion();
+        }
+    });
+</script>
